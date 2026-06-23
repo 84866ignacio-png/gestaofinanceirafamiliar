@@ -14,7 +14,7 @@ export interface Transaction {
   id: string;
   description: string;
   amount: number;
-  category: "Alimentação" | "Moradia" | "Lazer" | "Transações" | "Educação" | "Transporte" | "Trabalho" | "Mesada" | "Outros" | "Metas de Poupança";
+  category: string;
   type: "income" | "expense";
   date: string;
   member: string; // Member name who did it
@@ -63,7 +63,7 @@ export interface FamilyFinanceData {
 export interface FamilyAsset {
   id: string;
   name: string;
-  type: "investment" | "real_estate" | "vehicle" | "cash_account" | "other";
+  type: string;
   value: number;
   owner: string; // e.g. "Família" or a specific member name
   description?: string;

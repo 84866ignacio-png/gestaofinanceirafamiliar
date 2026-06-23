@@ -38,7 +38,8 @@ import {
   Settings,
   Globe,
   Coins,
-  Users
+  Users,
+  ListFilter
 } from "lucide-react";
 import { FamilyMember, Transaction, Chore, FamilyFinanceData, FamilyAsset } from "@/lib/types";
 
@@ -349,29 +350,19 @@ const translations = {
   }
 };
 
-const getAssetTypeIcon = (type: string) => {
-  switch (type) {
-    case "investment": return "📈";
-    case "real_estate": return "🏡";
-    case "vehicle": return "🚗";
-    case "cash_account": return "🏦";
-    default: return "📦";
-  }
-};
-
-const getAssetTypeLabel = (type: string) => {
-  switch (type) {
-    case "investment": return "Investimento";
-    case "real_estate": return "Imóvel / Propriedade";
-    case "vehicle": return "Veículo";
-    case "cash_account": return "Conta Bancária";
-    default: return "Outro Ativo";
-  }
-};
-
 export default function Page() {
   // STATE MANAGEMENT
   const [mounted, setMounted] = useState(false);
+
+  const getAssetTypeIcon = (type: string) => {
+    const found = assetCategories.find(cat => cat.id === type);
+    return found ? found.icon : "📦";
+  };
+
+  const getAssetTypeLabel = (type: string) => {
+    const found = assetCategories.find(cat => cat.id === type);
+    return found ? found.name : "Outro Ativo";
+  };
   const [systemLanguage, setSystemLanguage] = useState<"pt-BR" | "en-US" | "es-ES">("pt-BR");
   const t = translations[systemLanguage] || translations["pt-BR"];
   const [members, setMembers] = useState<FamilyMember[]>([]);
@@ -525,13 +516,13 @@ export default function Page() {
   const [editingAssetId, setEditingAssetId] = useState<string | null>(null);
   const [showAddAssetInline, setShowAddAssetInline] = useState(false);
   const [addAssetName, setAddAssetName] = useState("");
-  const [addAssetType, setAddAssetType] = useState<"investment" | "real_estate" | "vehicle" | "cash_account" | "other">("investment");
+  const [addAssetType, setAddAssetType] = useState<string>("investment");
   const [addAssetValue, setAddAssetValue] = useState("");
   const [addAssetOwner, setAddAssetOwner] = useState("Família");
   const [addAssetDescription, setAddAssetDescription] = useState("");
 
   const [editAssetName, setEditAssetName] = useState("");
-  const [editAssetType, setEditAssetType] = useState<"investment" | "real_estate" | "vehicle" | "cash_account" | "other">("investment");
+  const [editAssetType, setEditAssetType] = useState<string>("investment");
   const [editAssetValue, setEditAssetValue] = useState("");
   const [editAssetOwner, setEditAssetOwner] = useState("");
   const [editAssetDescription, setEditAssetDescription] = useState("");
@@ -542,6 +533,45 @@ export default function Page() {
   // Custom confirmation and success modal states for resetting system
   const [showResetConfirmModal, setShowResetConfirmModal] = useState(false);
   const [showResetSuccessModal, setShowResetSuccessModal] = useState(false);
+
+  // Dynamic Categories States
+  const [expenseCategories, setExpenseCategories] = useState<{ id: string; name: string; icon: string }[]>([
+    { id: "Alimentação", name: "Alimentação", icon: "🍇" },
+    { id: "Moradia", name: "Moradia", icon: "🏠" },
+    { id: "Lazer", name: "Lazer", icon: "🍿" },
+    { id: "Educação", name: "Educação", icon: "📖" },
+    { id: "Transporte", name: "Transporte", icon: "🚗" },
+    { id: "Outros", name: "Outros", icon: "⚙️" }
+  ]);
+
+  const [incomeCategories, setIncomeCategories] = useState<{ id: string; name: string; icon: string }[]>([
+    { id: "Trabalho", name: "Salários", icon: "💼" },
+    { id: "Outros", name: "Rendimentos/Outros", icon: "💰" }
+  ]);
+
+  const [assetCategories, setAssetCategories] = useState<{ id: string; name: string; icon: string }[]>([
+    { id: "investment", name: "Investimento", icon: "📈" },
+    { id: "real_estate", name: "Imóvel / Propriedade", icon: "🏡" },
+    { id: "vehicle", name: "Veículo", icon: "🚗" },
+    { id: "cash_account", name: "Conta Bancária", icon: "🏦" },
+    { id: "other", name: "Outro Ativo", icon: "📦" }
+  ]);
+
+  const [editingCatId, setEditingCatId] = useState<string | null>(null);
+  const [editingCatType, setEditingCatType] = useState<"expense" | "income" | "asset" | null>(null);
+  const [catFormName, setCatFormName] = useState("");
+  const [catFormIcon, setCatFormIcon] = useState("");
+
+  // Common Fund Admin & Dependent Management States
+  const [showManageCommonFundModal, setShowManageCommonFundModal] = useState(false);
+  const [commonFundActionType, setCommonFundActionType] = useState<"add" | "remove" | "adjust" | "transfer">("add");
+  const [commonFundAmount, setCommonFundAmount] = useState("");
+  const [commonFundDescription, setCommonFundDescription] = useState("");
+
+  // Extrato Geral em Lista Search/Filter States
+  const [statementSearch, setStatementSearch] = useState("");
+  const [statementTypeFilter, setStatementTypeFilter] = useState<"all" | "income" | "expense">("all");
+  const [statementCategoryFilter, setStatementCategoryFilter] = useState("all");
 
   // LOAD FROM LOCAL STORAGE (or set default seeded)
   useEffect(() => {
@@ -595,6 +625,13 @@ export default function Page() {
         if (savedLang) setSystemLanguage(savedLang as any);
         if (savedCurr) setSystemCurrency(savedCurr);
 
+        const savedExpCats = localStorage.getItem(isDemo ? "gff_demo_exp_categories" : "gff_exp_categories");
+        const savedIncCats = localStorage.getItem(isDemo ? "gff_demo_inc_categories" : "gff_inc_categories");
+        const savedAssetCats = localStorage.getItem(isDemo ? "gff_demo_asset_categories" : "gff_asset_categories");
+        if (savedExpCats) setExpenseCategories(JSON.parse(savedExpCats));
+        if (savedIncCats) setIncomeCategories(JSON.parse(savedIncCats));
+        if (savedAssetCats) setAssetCategories(JSON.parse(savedAssetCats));
+
         // Master account initialization
         if (!savedMasterAccount) {
           const defaultMaster = {
@@ -639,6 +676,112 @@ export default function Page() {
       localStorage.setItem("gff_chores", JSON.stringify(updatedC));
       localStorage.setItem("gff_finance", JSON.stringify(updatedF));
     }
+  };
+
+  const updateExpenseCategories = (cats: typeof expenseCategories) => {
+    setExpenseCategories(cats);
+    const isDemo = localStorage.getItem("gff_is_demo") === "true";
+    localStorage.setItem(isDemo ? "gff_demo_exp_categories" : "gff_exp_categories", JSON.stringify(cats));
+  };
+
+  const updateIncomeCategories = (cats: typeof incomeCategories) => {
+    setIncomeCategories(cats);
+    const isDemo = localStorage.getItem("gff_is_demo") === "true";
+    localStorage.setItem(isDemo ? "gff_demo_inc_categories" : "gff_inc_categories", JSON.stringify(cats));
+  };
+
+  const updateAssetCategories = (cats: typeof assetCategories) => {
+    setAssetCategories(cats);
+    const isDemo = localStorage.getItem("gff_is_demo") === "true";
+    localStorage.setItem(isDemo ? "gff_demo_asset_categories" : "gff_asset_categories", JSON.stringify(cats));
+  };
+
+  const [newCatName, setNewCatName] = useState("");
+  const [newCatIcon, setNewCatIcon] = useState("🏷️");
+
+  const handleAddCategory = (type: "expense" | "income" | "asset") => {
+    if (!newCatName.trim()) {
+      alert("Por favor, digite um nome para a categoria.");
+      return;
+    }
+    const newId = newCatName.trim();
+    const newCat = { id: newId, name: newCatName.trim(), icon: newCatIcon };
+
+    if (type === "expense") {
+      if (expenseCategories.some(c => c.id === newId)) {
+        alert("Esta categoria já existe!");
+        return;
+      }
+      updateExpenseCategories([...expenseCategories, newCat]);
+    } else if (type === "income") {
+      if (incomeCategories.some(c => c.id === newId)) {
+        alert("Esta categoria já existe!");
+        return;
+      }
+      updateIncomeCategories([...incomeCategories, newCat]);
+    } else {
+      if (assetCategories.some(c => c.id === newId)) {
+        alert("Esta categoria já existe!");
+        return;
+      }
+      updateAssetCategories([...assetCategories, newCat]);
+    }
+
+    setNewCatName("");
+    setNewCatIcon("🏷️");
+  };
+
+  const handleDeleteCategory = (type: "expense" | "income" | "asset", id: string) => {
+    if (type === "expense") {
+      if (expenseCategories.length <= 1) {
+        alert("É necessário manter pelo menos uma categoria de gasto.");
+        return;
+      }
+      updateExpenseCategories(expenseCategories.filter(c => c.id !== id));
+    } else if (type === "income") {
+      if (incomeCategories.length <= 1) {
+        alert("É necessário manter pelo menos uma categoria de receita.");
+        return;
+      }
+      updateIncomeCategories(incomeCategories.filter(c => c.id !== id));
+    } else {
+      if (assetCategories.length <= 1) {
+        alert("É necessário manter pelo menos uma categoria de ativo.");
+        return;
+      }
+      updateAssetCategories(assetCategories.filter(c => c.id !== id));
+    }
+  };
+
+  const handleStartEditCategory = (type: "expense" | "income" | "asset", cat: { id: string; name: string; icon: string }) => {
+    setEditingCatId(cat.id);
+    setEditingCatType(type);
+    setCatFormName(cat.name);
+    setCatFormIcon(cat.icon);
+  };
+
+  const handleSaveEditCategory = () => {
+    if (!catFormName.trim()) {
+      alert("Nome não pode ser vazio.");
+      return;
+    }
+    if (!editingCatId || !editingCatType) return;
+
+    if (editingCatType === "expense") {
+      const updated = expenseCategories.map(c => c.id === editingCatId ? { ...c, name: catFormName.trim(), icon: catFormIcon } : c);
+      updateExpenseCategories(updated);
+    } else if (editingCatType === "income") {
+      const updated = incomeCategories.map(c => c.id === editingCatId ? { ...c, name: catFormName.trim(), icon: catFormIcon } : c);
+      updateIncomeCategories(updated);
+    } else {
+      const updated = assetCategories.map(c => c.id === editingCatId ? { ...c, name: catFormName.trim(), icon: catFormIcon } : c);
+      updateAssetCategories(updated);
+    }
+
+    setEditingCatId(null);
+    setEditingCatType(null);
+    setCatFormName("");
+    setCatFormIcon("");
   };
 
   const performSystemReset = () => {
@@ -1339,6 +1482,35 @@ export default function Page() {
 
     setShowEditCommonBalanceModal(false);
     setEditCommonBalanceValue("");
+  };
+
+  const handleZeroCommonFund = () => {
+    if (!activeMember || activeMember.role !== "admin") return;
+    
+    const confirmZero = window.confirm("Tem certeza de que deseja zerar completamente o Fundo Comum Familiar? Esta ação não pode ser desfeita.");
+    if (!confirmZero) return;
+
+    const previousBalance = financeData.balance;
+    const updatedFinance = {
+      ...financeData,
+      balance: 0.00,
+    };
+
+    if (previousBalance > 0) {
+      const adjustmentTx: Transaction = {
+        id: `tx-zero-${Date.now()}`,
+        description: `Zera Fundo Comum Familiar pelo administrador (${activeMember.name})`,
+        amount: previousBalance,
+        type: "expense",
+        category: "Outros",
+        date: new Date().toLocaleDateString("pt-BR"),
+        member: activeMember.name,
+        accountType: "common"
+      };
+      syncWithStorage(members, [adjustmentTx, ...transactions], chores, updatedFinance);
+    } else {
+      syncWithStorage(members, transactions, chores, updatedFinance);
+    }
   };
 
   // CONTRIBUTE TO GOALS
@@ -3183,20 +3355,6 @@ export default function Page() {
           </div>
 
           <button
-            onClick={() => {
-              setShowAiModal(true);
-              if (!aiAdvice && !loadingAi) {
-                triggerGetAiAdvice();
-              }
-            }}
-            id="mobile-ai-trigger"
-            className="p-1.5 bg-indigo-600/35 text-amber-300 hover:text-amber-200 hover:bg-indigo-600/50 rounded-lg transition-all border border-indigo-500/30 flex items-center justify-center animate-pulse cursor-pointer"
-            title="Conselheiro IA Giga"
-          >
-            <Sparkles className="w-4 h-4" />
-          </button>
-
-          <button
             onClick={() => setShowDemoExplanationModal(true)}
             className="p-1.5 bg-slate-800 text-slate-300 hover:text-white rounded-lg transition-all border border-slate-700/50 flex items-center justify-center cursor-pointer"
             title="Como utilizar o sistema"
@@ -3446,20 +3604,7 @@ export default function Page() {
               <span>Como Funciona?</span>
             </button>
 
-            <button
-              onClick={() => {
-                setShowAiModal(true);
-                if (!aiAdvice && !loadingAi) {
-                  triggerGetAiAdvice();
-                }
-              }}
-              id="desktop-ai-trigger"
-              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs py-2.5 px-4 rounded-xl shadow-md shadow-indigo-600/15 transition-all hover:scale-[1.02] active:scale-[0.98] group cursor-pointer"
-              title="Clique para obter aconselhamento da IA"
-            >
-              <Sparkles className="w-4 h-4 text-amber-350 text-amber-300 animate-bounce" />
-              <span>Conselheiro IA Giga</span>
-            </button>
+
           </div>
         </header>
 
@@ -3930,19 +4075,17 @@ export default function Page() {
                                 >
                                   {txType === "expense" ? (
                                     <>
-                                      <option value="Alimentação">🍇 Alimentação</option>
-                                      <option value="Moradia">🏠 Moradia</option>
-                                      <option value="Lazer">🍿 Lazer</option>
-                                      <option value="Educação">📖 Educação</option>
-                                      <option value="Transporte">🚗 Transporte</option>
+                                      {expenseCategories.map(cat => (
+                                        <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>
+                                      ))}
                                       <option value="Metas de Poupança">🎯 Metas de Poupança</option>
-                                      <option value="Outros">⚙️ Outros</option>
                                     </>
                                   ) : (
                                     <>
-                                      <option value="Trabalho">💼 Salários</option>
+                                      {incomeCategories.map(cat => (
+                                        <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>
+                                      ))}
                                       <option value="Metas de Poupança">🎯 Resgate de Meta</option>
-                                      <option value="Outros">💰 Rendimentos</option>
                                     </>
                                   )}
                                 </select>
@@ -4051,33 +4194,6 @@ export default function Page() {
             {/* RIGHT SIDEBAR COLUMN (GEMINI ADVISOR & SAVINGS COOPERATIVE META) */}
             <div className="space-y-6">
               
-              {/* GEMINI PERSONAL AI FAMILY CONSULTANT (PROMPTABLE ADVISOR) */}
-              <div className="bg-gradient-to-br from-slate-900 to-indigo-950 text-white rounded-3xl p-5 border border-slate-800/80 relative overflow-hidden shadow-lg shadow-indigo-950/15">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 rounded-full blur-xl pointer-events-none" />
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-600/30 flex items-center justify-center text-indigo-400">
-                    <Sparkles className="w-5 h-5 animate-pulse text-amber-300" />
-                  </div>
-                  <div>
-                    <h4 className="font-extrabold text-xs text-white uppercase tracking-wider">Conselheiro IA Giga</h4>
-                    <p className="text-[10px] text-slate-400 mt-0.5">Feedback & Instruções Inteligentes de Orçamento</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowAiModal(true);
-                    if (!aiAdvice && !loadingAi) {
-                      triggerGetAiAdvice();
-                    }
-                  }}
-                  className="w-full mt-4 bg-indigo-600 hover:bg-indigo-50 text-white text-[11px] font-bold py-2 px-4 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 shadow-md shadow-indigo-600/10"
-                >
-                  <Sparkles className="w-3.5 h-3.5 animate-bounce" />
-                  Acionar Conselheiro 🤖
-                </button>
-              </div>
-
               {/* FAMILY SAVINGS GOALS (METAS DE POUPANÇA) */}
               <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
                 <div className="flex items-center justify-between mb-4">
@@ -4511,16 +4627,25 @@ export default function Page() {
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Fundo Comum Familiar</span>
                             <div className="flex items-center gap-1.5 mt-0.5">
                               {activeMember?.role === "admin" && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setEditCommonBalanceValue(commonFundVal.toString());
-                                    setShowEditCommonBalanceModal(true);
-                                  }}
-                                  className="text-[9px] font-semibold text-indigo-650 hover:text-indigo-800 hover:underline cursor-pointer flex items-center gap-0.5 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-150 transition-all"
-                                >
-                                  <Pencil className="w-2 h-2" /> Ajustar
-                                </button>
+                                <div className="flex gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditCommonBalanceValue(commonFundVal.toString());
+                                      setShowEditCommonBalanceModal(true);
+                                    }}
+                                    className="text-[9px] font-semibold text-indigo-650 hover:text-indigo-800 hover:underline cursor-pointer flex items-center gap-0.5 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-150 transition-all"
+                                  >
+                                    <Pencil className="w-2 h-2" /> Ajustar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={handleZeroCommonFund}
+                                    className="text-[9px] font-bold text-rose-600 hover:bg-rose-100/50 hover:text-rose-800 hover:underline cursor-pointer flex items-center gap-0.5 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-150 transition-all"
+                                  >
+                                    🧹 Zerar Fundo
+                                  </button>
+                                </div>
                               )}
                               <span className="text-sm font-extrabold text-indigo-600">
                                 {systemCurrency} {commonFundVal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="font-bold text-xs text-indigo-500">({commonPctReal.toFixed(1)}%)</span>
@@ -4760,14 +4885,12 @@ export default function Page() {
                           <label className="block text-[9px] font-bold text-slate-400 mb-0.5">Categoria</label>
                           <select
                             value={addAssetType}
-                            onChange={(e) => setAddAssetType(e.target.value as any)}
+                            onChange={(e) => setAddAssetType(e.target.value)}
                             className="w-full text-xs text-[#334155] border-2 border-slate-200 focus:border-indigo-500 focus:outline-none rounded-xl px-2.5 py-1.5 bg-white font-sans cursor-pointer"
                           >
-                            <option value="investment">📈 Investimento</option>
-                            <option value="real_estate">🏡 Imóvel / Propriedade</option>
-                            <option value="vehicle">🚗 Veículo</option>
-                            <option value="cash_account">🏦 Conta Bancária / Caixas</option>
-                            <option value="other">📦 Outro Ativo</option>
+                            {assetCategories.map(cat => (
+                              <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>
+                            ))}
                           </select>
                         </div>
                       </div>
@@ -5135,6 +5258,305 @@ export default function Page() {
 
             </div>
 
+            {/* EXPANDED SECTION: EXTRATO EM LISTA & CRUD DE CATEGORIAS (ADMIN ONLY) */}
+            <div className="bg-white rounded-3xl p-6 md:p-8 border border-slate-100 shadow-sm space-y-8 mt-8 col-span-1 lg:col-span-3">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-5">
+                <div>
+                  <h3 className="font-extrabold text-slate-800 text-lg flex items-center gap-2">
+                    <ListFilter className="w-5 h-5 text-indigo-600" />
+                    Listagem de Extrato & Gestão de Categorias do Sistema (Administrador)
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">Visão unificada de fluxo de caixa e controle total de categorias de gastos, receitas e patrimônios</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                
+                {/* COL 1 & 2: DYNAMIC EXTRATO EM LISTA (CRUD) */}
+                <div className="xl:col-span-2 space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <h4 className="font-extrabold text-slate-800 text-sm uppercase tracking-wider text-indigo-700 font-sans">📜 Extrato Geral de Lançamentos</h4>
+                    
+                    {/* FILTERS TOOLBAR */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input
+                        type="text"
+                        placeholder="Buscar por descrição..."
+                        value={statementSearch}
+                        onChange={(e) => setStatementSearch(e.target.value)}
+                        className="text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 w-full sm:w-44 text-slate-800 bg-white"
+                      />
+                      <select
+                        value={statementTypeFilter}
+                        onChange={(e) => setStatementTypeFilter(e.target.value as any)}
+                        className="text-xs px-2.5 py-1.5 border border-slate-200 rounded-lg focus:outline-none bg-white text-slate-800 font-sans cursor-pointer"
+                      >
+                        <option value="all">Todos os tipos</option>
+                        <option value="income">Entrada (Receita)</option>
+                        <option value="expense">Saída (Gasto)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* STATEMENT LIST/TABLE */}
+                  <div className="border border-slate-100 rounded-2xl overflow-hidden bg-slate-50/50 max-h-[480px] overflow-y-auto">
+                    {(() => {
+                      const filteredTxs = transactions.filter(tx => {
+                        const matchesSearch = tx.description.toLowerCase().includes(statementSearch.toLowerCase());
+                        const matchesType = statementTypeFilter === "all" || tx.type === statementTypeFilter;
+                        return matchesSearch && matchesType;
+                      });
+
+                      if (filteredTxs.length === 0) {
+                        return (
+                          <div className="p-8 text-center text-slate-400 text-xs font-bold">
+                            Nenhum lançamento encontrado com os filtros selecionados.
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="divide-y divide-slate-100">
+                          {filteredTxs.map(tx => {
+                            const isIncome = tx.type === "income";
+                            const isCommon = tx.accountType === "common" || !tx.accountType;
+                            return (
+                              <div key={tx.id} className="p-4 hover:bg-slate-50 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div className="space-y-1">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="text-[10px] font-bold text-slate-400 font-mono">{tx.date}</span>
+                                    <span className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded ${
+                                      isCommon ? "bg-indigo-55 bg-indigo-50 text-indigo-750 text-indigo-700 border border-indigo-150" : "bg-teal-50 text-teal-700 border border-teal-150"
+                                    }`}>
+                                      {isCommon ? "Fundo Comum" : "Individual"}
+                                    </span>
+                                    <span className="text-[10px] text-slate-400 font-semibold">por {tx.member}</span>
+                                  </div>
+                                  <p className="font-extrabold text-slate-705 text-slate-700 text-xs line-clamp-1">{tx.description}</p>
+                                  <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-bold">
+                                    <span>Categoria:</span>
+                                    <span className="bg-slate-200/60 px-1.5 py-0.2 rounded font-sans">{tx.category}</span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-4 justify-between sm:justify-end">
+                                  <span className={`font-mono text-xs font-black ${isIncome ? "text-emerald-600" : "text-rose-600"}`}>
+                                    {isIncome ? "+" : "-"} {systemCurrency} {tx.amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                                  </span>
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditTxDesc(tx.description);
+                                        setEditTxAmount(tx.amount.toString());
+                                        setEditTxType(tx.type);
+                                        setEditTxCategory(tx.category);
+                                        setEditTxMember(tx.member);
+                                        setEditingTx(tx);
+                                        setShowEditTxModal(true);
+                                      }}
+                                      className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-650 hover:bg-indigo-50 transition-all cursor-pointer"
+                                      title="Editar Lançamento"
+                                    >
+                                      <Pencil className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteTransaction(tx.id)}
+                                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all cursor-pointer"
+                                      title="Excluir Lançamento"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                {/* COL 3: CATEGORIES LISTS CRUD & FORM */}
+                <div className="space-y-6">
+                  <h4 className="font-extrabold text-slate-800 text-sm uppercase tracking-wider text-indigo-700 font-sans">🏷️ Gestão de Categorias</h4>
+
+                  {/* MINI FORM TO CREATE NEW CATEGORY */}
+                  <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl space-y-3">
+                    <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest block font-sans">Cadastrar Nova Categoria</span>
+                    <div className="grid grid-cols-4 gap-2">
+                      <div className="col-span-3">
+                        <label className="block text-[8px] font-bold text-slate-400 mb-0.5">Nome do Item</label>
+                        <input
+                          type="text"
+                          placeholder="Ex: Streaming, Cashback, Crypto..."
+                          value={newCatName}
+                          onChange={(e) => setNewCatName(e.target.value)}
+                          className="w-full text-xs text-slate-800 border-2 border-slate-200 focus:border-indigo-500 focus:outline-none rounded-xl px-2.5 py-1.5 bg-white font-sans"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[8px] font-bold text-slate-400 mb-0.5">Emoji</label>
+                        <select
+                          value={newCatIcon}
+                          onChange={(e) => setNewCatIcon(e.target.value)}
+                          className="w-full text-xs text-[#334155] border-2 border-slate-200 focus:border-indigo-500 focus:outline-none rounded-xl px-2 py-1.5 bg-white font-sans text-center cursor-pointer"
+                        >
+                          <option value="🏷️">🏷️</option>
+                          <option value="🍿">🍿</option>
+                          <option value="🍇">🍇</option>
+                          <option value="🏠">🏠</option>
+                          <option value="📖">📖</option>
+                          <option value="🚗">🚗</option>
+                          <option value="🍕">🍕</option>
+                          <option value="🛒">🛒</option>
+                          <option value="🎓">🎓</option>
+                          <option value="🌱">🌱</option>
+                          <option value="💻">💻</option>
+                          <option value="🎮">🎮</option>
+                          <option value="💸">💸</option>
+                          <option value="💼">💼</option>
+                          <option value="💰">💰</option>
+                          <option value="📈">📈</option>
+                          <option value="🏡">🏡</option>
+                          <option value="🏦">🏦</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-1.5 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => handleAddCategory("expense")}
+                        className="py-1.5 px-2 bg-rose-50 border border-rose-150 hover:bg-rose-100 text-rose-700 text-[10px] font-bold rounded-lg transition-all cursor-pointer"
+                      >
+                        + Gasto
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleAddCategory("income")}
+                        className="py-1.5 px-2 bg-emerald-50 border border-emerald-150 hover:bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-lg transition-all cursor-pointer"
+                      >
+                        + Receito
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleAddCategory("asset")}
+                        className="py-1.5 px-2 bg-indigo-50 border border-indigo-150 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold rounded-lg transition-all cursor-pointer"
+                      >
+                        + Ativo
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* EDITING CATEGORY INLINE PANE */}
+                  {editingCatId && (
+                    <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black text-indigo-750 uppercase font-sans">Editar Categoria</span>
+                        <button onClick={() => setEditingCatId(null)} className="text-[9px] text-rose-500 hover:underline cursor-pointer">Cancelar</button>
+                      </div>
+                      <div className="grid grid-cols-4 gap-2">
+                        <input
+                          type="text"
+                          value={catFormName}
+                          onChange={(e) => setCatFormName(e.target.value)}
+                          className="col-span-3 text-xs border border-indigo-250 bg-white rounded-xl px-2.5 py-1.5 font-sans text-slate-800"
+                        />
+                        <select
+                          value={catFormIcon}
+                          onChange={(e) => setCatFormIcon(e.target.value)}
+                          className="text-xs border border-indigo-250 bg-white rounded-xl px-2.5 py-1.5 font-sans text-slate-800 cursor-pointer"
+                        >
+                          <option value="🏷️">🏷️</option>
+                          <option value="🍿">🍿</option>
+                          <option value="🍇">🍇</option>
+                          <option value="🏠">🏠</option>
+                          <option value="📖">📖</option>
+                          <option value="🚗">🚗</option>
+                          <option value="🍕">🍕</option>
+                          <option value="🛒">🛒</option>
+                          <option value="🎓">🎓</option>
+                          <option value="🌱">🌱</option>
+                          <option value="💻">💻</option>
+                          <option value="🎮">🎮</option>
+                          <option value="💸">💸</option>
+                          <option value="💼">💼</option>
+                          <option value="💰">💰</option>
+                          <option value="📈">📈</option>
+                          <option value="🏡">🏡</option>
+                          <option value="🏦">🏦</option>
+                        </select>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleSaveEditCategory}
+                        className="w-full py-1.5 bg-indigo-650 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl cursor-pointer"
+                      >
+                        Atualizar Categoria
+                      </button>
+                    </div>
+                  )}
+
+                  {/* ACCORDION/LIST OF CATEGORIES BY GROUPS */}
+                  <div className="space-y-4 max-h-[350px] overflow-y-auto pr-1">
+                    
+                    {/* EXPENSES GROUP */}
+                    <div className="space-y-2">
+                      <span className="text-[10px] font-bold text-rose-500 uppercase block font-sans">Saídas / Gastos ({expenseCategories.length})</span>
+                      <div className="grid grid-cols-1 gap-1.5">
+                        {expenseCategories.map(cat => (
+                          <div key={cat.id} className="flex items-center justify-between p-2 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold text-slate-700">
+                            <span className="flex items-center gap-1.5 font-sans"><span>{cat.icon}</span> <span>{cat.name}</span></span>
+                            <div className="flex gap-1.5">
+                              <button onClick={() => handleStartEditCategory("expense", cat)} className="text-[10px] text-indigo-600 hover:underline cursor-pointer">Editar</button>
+                              <button onClick={() => handleDeleteCategory("expense", cat.id)} className="text-[10px] text-rose-500 hover:underline cursor-pointer">Remover</button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* INCOME GROUP */}
+                    <div className="space-y-2">
+                      <span className="text-[10px] font-bold text-emerald-600 uppercase block font-sans">Entradas / Receitas ({incomeCategories.length})</span>
+                      <div className="grid grid-cols-1 gap-1.5">
+                        {incomeCategories.map(cat => (
+                          <div key={cat.id} className="flex items-center justify-between p-2 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold text-slate-700">
+                            <span className="flex items-center gap-1.5 font-sans"><span>{cat.icon}</span> <span>{cat.name}</span></span>
+                            <div className="flex gap-1.5">
+                              <button onClick={() => handleStartEditCategory("income", cat)} className="text-[10px] text-indigo-600 hover:underline cursor-pointer">Editar</button>
+                              <button onClick={() => handleDeleteCategory("income", cat.id)} className="text-[10px] text-rose-500 hover:underline cursor-pointer">Remover</button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* ASSET GROUP */}
+                    <div className="space-y-2">
+                      <span className="text-[10px] font-bold text-indigo-600 uppercase block font-sans">Ativos / Patrimônio ({assetCategories.length})</span>
+                      <div className="grid grid-cols-1 gap-1.5">
+                        {assetCategories.map(cat => (
+                          <div key={cat.id} className="flex items-center justify-between p-2 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold text-slate-700">
+                            <span className="flex items-center gap-1.5 font-sans"><span>{cat.icon}</span> <span>{cat.name}</span></span>
+                            <div className="flex gap-1.5">
+                              <button onClick={() => handleStartEditCategory("asset", cat)} className="text-[10px] text-indigo-600 hover:underline cursor-pointer">Editar</button>
+                              <button onClick={() => handleDeleteCategory("asset", cat.id)} className="text-[10px] text-rose-500 hover:underline cursor-pointer">Remover</button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                  </div>
+
+                </div>
+
+              </div>
+            </div>
+
           </div>
         )}
 
@@ -5241,88 +5663,6 @@ export default function Page() {
                 {editingChore ? "Salvar Alterações" : "Criar Tarefa"}
               </button>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: CONSELHEIRO IA GIGA */}
-      {showAiModal && (
-        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 text-slate-100 rounded-3xl max-w-lg w-full p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[85vh]">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800 flex-shrink-0">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center shadow-md shadow-indigo-600/20">
-                  <Sparkles className="w-5 h-5 text-amber-300" />
-                </div>
-                <div>
-                  <h3 className="font-extrabold text-base text-white tracking-tight">Conselheiro IA Giga</h3>
-                  <p className="text-[10px] text-slate-400">Inteligência Financeira Ativa</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowAiModal(false)}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-                title="Fechar"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto py-5 space-y-4">
-              <p className="text-xs text-slate-300 leading-relaxed bg-slate-950/40 p-3 rounded-2xl border border-slate-800/40">
-                Olá, <strong>{activeMember.name}</strong>! Como conselheiro oficial da casa, analisei as despesas coletivas recentes, limites e o progresso das suas metas de poupança.
-              </p>
-
-              {/* Advice content block */}
-              <div className="bg-slate-950/60 p-4 rounded-2xl border border-slate-800 min-h-[180px] text-sm leading-relaxed text-slate-200 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none" />
-
-                {loadingAi ? (
-                  <div className="flex flex-col items-center justify-center space-y-3 py-12">
-                    <div className="w-8 h-8 border-3 border-indigo-400 border-t-transparent rounded-full animate-spin"></div>
-                    <p className="text-xs text-slate-400 animate-pulse text-center max-w-xs">
-                      Giga está recalculando as estatísticas financeiras, checando orçamentos da família e gerando recomendações sob medida...
-                    </p>
-                  </div>
-                ) : aiError ? (
-                  <div className="text-center py-8">
-                    <p className="text-rose-400 font-medium text-xs mb-2">⚠️ {aiError}</p>
-                    <p className="text-slate-400 text-[11px]">Verifique a sua conexão ou tente recarregar.</p>
-                  </div>
-                ) : aiAdvice ? (
-                  <div className="whitespace-pre-wrap font-sans text-xs md:text-sm text-slate-300 space-y-2">
-                    {aiAdvice}
-                  </div>
-                ) : (
-                  <div className="text-center py-10 text-slate-500">
-                    <p className="text-xs mb-3">Nenhuma recomendação recente disponível no momento.</p>
-                  </div>
-                )}
-              </div>
-
-              <div className="text-[10px] text-slate-400 leading-relaxed bg-indigo-55/10 bg-indigo-950/20 p-3 rounded-xl border border-indigo-900/20">
-                💡 <strong>Dica da IA:</strong> {activeMember.role === "admin" 
-                  ? "Como administrador, você pode ajustar o teto do orçamento e criar tarefas remuneradas para incentivar os demais moradores."
-                  : "Complete as tarefas domésticas e de educação financeira para acumular recompensas no seu cofre individual!"}
-              </div>
-            </div>
-
-            <div className="pt-4 border-t border-slate-800 flex items-center justify-between gap-3 flex-shrink-0">
-              <button
-                onClick={() => triggerGetAiAdvice()}
-                disabled={loadingAi}
-                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-2.5 px-4 rounded-xl shadow-md shadow-indigo-600/10 disabled:bg-slate-800 disabled:text-slate-600 transition-all flex items-center justify-center gap-2"
-              >
-                <Sparkles className="w-4 h-4 text-amber-300" />
-                <span>{loadingAi ? "Analisando..." : "Análise Inteligente Dinâmica 🔄"}</span>
-              </button>
-              <button
-                onClick={() => setShowAiModal(false)}
-                className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl transition-all"
-              >
-                Fechar
-              </button>
-            </div>
           </div>
         </div>
       )}
@@ -5515,19 +5855,17 @@ export default function Page() {
                   >
                     {editTxType === "expense" ? (
                       <>
-                        <option value="Alimentação">🍇 Alimentação</option>
-                        <option value="Moradia">🏠 Moradia</option>
-                        <option value="Lazer">🍿 Lazer</option>
-                        <option value="Educação">📖 Educação</option>
-                        <option value="Transporte">🚗 Transporte</option>
+                        {expenseCategories.map(cat => (
+                          <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>
+                        ))}
                         <option value="Metas de Poupança">🎯 Metas de Poupança</option>
-                        <option value="Outros">⚙️ Outros</option>
                       </>
                     ) : (
                       <>
-                        <option value="Trabalho">💼 Salários</option>
+                        {incomeCategories.map(cat => (
+                          <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>
+                        ))}
                         <option value="Metas de Poupança">🎯 Resgate de Meta</option>
-                        <option value="Outros">💰 Rendimentos</option>
                       </>
                     )}
                   </select>
@@ -5909,14 +6247,12 @@ export default function Page() {
                   <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Categoria do Ativo</label>
                   <select
                     value={editAssetType}
-                    onChange={(e) => setEditAssetType(e.target.value as any)}
+                    onChange={(e) => setEditAssetType(e.target.value)}
                     className="w-full text-[#334155] border-2 border-slate-100 focus:border-indigo-500 focus:outline-none rounded-xl px-3 py-2 text-xs font-sans cursor-pointer"
                   >
-                    <option value="investment">📈 Investimento</option>
-                    <option value="real_estate">🏡 Imóvel</option>
-                    <option value="vehicle">🚗 Veículo</option>
-                    <option value="cash_account">🏦 Conta Bancária</option>
-                    <option value="other">📦 Outro Ativo</option>
+                    {assetCategories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -6116,17 +6452,6 @@ export default function Page() {
                     <h5 className="font-extrabold text-slate-800 text-sm">Poupança para Metas Coletivas</h5>
                     <p className="text-xs text-slate-500 leading-relaxed">
                       Defina objetivos maiores (como uma viagem ✈️ de férias ou fundo de saúde 🏥). Qualquer administrador pode retirar fundos do caixa comum e enviar para as economias dessas metas.
-                    </p>
-                  </div>
-                </div>
-
-                {/* 5. Conselheiro Giga IA */}
-                <div className="p-3.5 bg-indigo-900 text-indigo-100 rounded-2xl flex gap-3.5 border border-indigo-950 shadow-md">
-                  <span className="text-2xl p-2 bg-indigo-950 text-indigo-300 rounded-xl flex-shrink-0 h-fit">🤖</span>
-                  <div className="space-y-1">
-                    <h5 className="font-extrabold text-white text-sm">Aconselhamento por Inteligência Artificial</h5>
-                    <p className="text-[11px] text-indigo-205 leading-relaxed">
-                      Clique no botão <strong>Conselheiro IA Giga</strong> a qualquer momento para que a Inteligência Artificial Gemini analise a balança financeira, as últimas despesas de mercado, alertas de gastos excessivos e forneça conselhos financeiros personalizados para cada perfil ativo!
                     </p>
                   </div>
                 </div>
