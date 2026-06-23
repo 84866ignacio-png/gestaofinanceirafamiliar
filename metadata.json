@@ -1,0 +1,8 @@
+{
+  "name": "Remix: Gestão Financeira Familiar",
+  "description": "Ambiente de login e painel financeiro para gestão de finanças familiar.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
