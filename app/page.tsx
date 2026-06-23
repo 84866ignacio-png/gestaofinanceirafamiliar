@@ -46,7 +46,7 @@ import { FamilyMember, Transaction, Chore, FamilyFinanceData, FamilyAsset } from
 const DEFAULT_MEMBERS: FamilyMember[] = [
   {
     id: "m-1",
-    name: "Carlos (Pai)",
+    name: "Júlio (Pai)",
     role: "admin",
     avatar: "👨‍💼",
     avatarColor: "from-teal-600 to-emerald-500",
@@ -57,7 +57,7 @@ const DEFAULT_MEMBERS: FamilyMember[] = [
   },
   {
     id: "m-2",
-    name: "Ana (Mãe)",
+    name: "Janaína (Mãe)",
     role: "admin",
     avatar: "👩‍💼",
     avatarColor: "from-pink-600 to-rose-500",
@@ -68,7 +68,7 @@ const DEFAULT_MEMBERS: FamilyMember[] = [
   },
   {
     id: "m-3",
-    name: "Thiago (Filho)",
+    name: "Júnior (Filho)",
     role: "child",
     avatar: "👦",
     avatarColor: "from-amber-500 to-yellow-400",
@@ -79,7 +79,7 @@ const DEFAULT_MEMBERS: FamilyMember[] = [
   },
   {
     id: "m-4",
-    name: "Mariana (Filha)",
+    name: "Tereza (Filha)",
     role: "child",
     avatar: "👧",
     avatarColor: "from-purple-600 to-violet-500",
@@ -110,6 +110,193 @@ const DEFAULT_FINANCE_DATA: FamilyFinanceData = {
   },
   assets: []
 };
+
+const DEMO_MEMBERS: FamilyMember[] = [
+  {
+    id: "m-1",
+    name: "Júlio (Pai)",
+    role: "admin",
+    avatar: "👨‍💼",
+    avatarColor: "from-teal-600 to-emerald-500",
+    pin: "1234",
+    balance: 1500.0,
+    allowance: 0,
+    participationType: "Pai",
+  },
+  {
+    id: "m-2",
+    name: "Janaína (Mãe)",
+    role: "admin",
+    avatar: "👩‍💼",
+    avatarColor: "from-pink-600 to-rose-500",
+    pin: "1234",
+    balance: 1200.0,
+    allowance: 0,
+    participationType: "Mãe",
+  },
+  {
+    id: "m-3",
+    name: "Júnior (Filho)",
+    role: "child",
+    avatar: "👦",
+    avatarColor: "from-amber-500 to-yellow-400",
+    pin: "5678",
+    balance: 82.5,
+    allowance: 150.0,
+    participationType: "Filho",
+  },
+  {
+    id: "m-4",
+    name: "Tereza (Filha)",
+    role: "child",
+    avatar: "👧",
+    avatarColor: "from-purple-600 to-violet-500",
+    pin: "5678",
+    balance: 145.0,
+    allowance: 150.0,
+    participationType: "Filha",
+  },
+];
+
+const DEMO_TRANSACTIONS: Transaction[] = [
+  {
+    id: "t-1",
+    description: "Salário Júlio",
+    amount: 6500.00,
+    category: "Trabalho",
+    type: "income",
+    date: "2026-06-05",
+    member: "Júlio (Pai)",
+  },
+  {
+    id: "t-2",
+    description: "Projetos Freelance Janaína",
+    amount: 1200.00,
+    category: "Trabalho",
+    type: "income",
+    date: "2026-06-10",
+    member: "Janaína (Mãe)",
+  },
+  {
+    id: "t-3",
+    description: "Aluguel & Condomínio",
+    amount: 1800.00,
+    category: "Moradia",
+    type: "expense",
+    date: "2026-06-12",
+    member: "Janaína (Mãe)",
+  },
+  {
+    id: "t-4",
+    description: "Supermercado Semanal",
+    amount: 420.50,
+    category: "Alimentação",
+    type: "expense",
+    date: "2026-06-18",
+    member: "Júlio (Pai)",
+  },
+  {
+    id: "t-5",
+    description: "Cinema Fim de Semana",
+    amount: 35.00,
+    category: "Lazer",
+    type: "expense",
+    date: "2026-06-19",
+    member: "Júnior (Filho)",
+  },
+];
+
+const DEMO_CHORES: Chore[] = [
+  {
+    id: "c-1",
+    title: "Lavar a louça do jantar",
+    reward: 10.00,
+    status: "available",
+  },
+  {
+    id: "c-2",
+    title: "Levar lixo e organizar quintal",
+    reward: 15.00,
+    status: "available",
+  },
+  {
+    id: "c-3",
+    title: "Pintar estante da garagem",
+    reward: 45.00,
+    status: "available",
+  },
+  {
+    id: "c-4",
+    title: "Organizar e dobrar roupas do guarda-roupa",
+    reward: 20.00,
+    status: "pending_approval",
+    claimedBy: "m-3",
+    claimedByName: "Júnior (Filho)",
+  },
+  {
+    id: "c-5",
+    title: "Tirar nota máxima em prova de Matemática",
+    reward: 50.00,
+    status: "completed",
+    claimedBy: "m-4",
+    claimedByName: "Tereza (Filha)",
+  }
+];
+
+const DEMO_FINANCE_DATA: FamilyFinanceData = {
+  balance: 5414.50,
+  budgetLimit: 4000.00,
+  totalExpenses: 2255.50,
+  goals: {
+    travel: {
+      current: 4500.00,
+      target: 8000.00,
+    },
+    emergency: {
+      current: 12000.00,
+      target: 15000.00,
+    },
+  },
+  assets: [
+    {
+      id: "asset-1",
+      name: "Apartamento Alugado (Belo Horizonte)",
+      type: "real_estate",
+      value: 320000.00,
+      owner: "Família",
+      description: "Apartamento de 2 quartos gerando renda mensal de aluguel.",
+      updatedAt: "2026-06-22"
+    },
+    {
+      id: "asset-2",
+      name: "CDB Liquidez Diária (Banco Itaú)",
+      type: "investment",
+      value: 45000.00,
+      owner: "Júlio (Pai)",
+      description: "Rendimento de 100% do CDI, de alta liquidez para oportunidades.",
+      updatedAt: "2026-06-22"
+    },
+    {
+      id: "asset-3",
+      name: "Veículo SUV Hyundai Creta",
+      type: "vehicle",
+      value: 95000.00,
+      owner: "Família",
+      description: "Carro principal de uso familiar de 2024.",
+      updatedAt: "2026-06-22"
+    },
+    {
+      id: "asset-4",
+      name: "Ações Carteira Diversificada (B3)",
+      type: "investment",
+      value: 34000.00,
+      owner: "Janaína (Mãe)",
+      description: "Ações de dividendos e fundos imobiliários.",
+      updatedAt: "2026-06-22"
+    }
+  ]
+};
+
 
 const translations = {
   "pt-BR": {
@@ -191,6 +378,10 @@ export default function Page() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [chores, setChores] = useState<Chore[]>([]);
   const [financeData, setFinanceData] = useState<FamilyFinanceData>(DEFAULT_FINANCE_DATA);
+
+  // Demo Mode and Monthly Filter States
+  const [isDemoMode, setIsDemoMode] = useState(false);
+  const [periodMode, setPeriodMode] = useState<"all" | "monthly">("all");
 
   // Active login state
   const [activeMember, setActiveMember] = useState<FamilyMember | null>(null);
@@ -355,37 +546,48 @@ export default function Page() {
   // LOAD FROM LOCAL STORAGE (or set default seeded)
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const savedMembers = localStorage.getItem("gff_members");
-      const savedTxs = localStorage.getItem("gff_transactions");
-      const savedChores = localStorage.getItem("gff_chores");
-      const savedFinance = localStorage.getItem("gff_finance");
+      const isDemo = localStorage.getItem("gff_is_demo") === "true";
+
+      const savedMembers = localStorage.getItem(isDemo ? "gff_demo_members" : "gff_members");
+      const savedTxs = localStorage.getItem(isDemo ? "gff_demo_transactions" : "gff_transactions");
+      const savedChores = localStorage.getItem(isDemo ? "gff_demo_chores" : "gff_chores");
+      const savedFinance = localStorage.getItem(isDemo ? "gff_demo_finance" : "gff_finance");
       const savedMasterAccount = localStorage.getItem("gff_master_account");
       const savedMasterSession = localStorage.getItem("gff_master_session");
 
       setTimeout(() => {
+        setIsDemoMode(isDemo);
         // Core data
-        if (savedMembers) setMembers(JSON.parse(savedMembers));
-        else {
-          setMembers(DEFAULT_MEMBERS);
-          localStorage.setItem("gff_members", JSON.stringify(DEFAULT_MEMBERS));
+        if (savedMembers) {
+          setMembers(JSON.parse(savedMembers));
+        } else {
+          const initialMembers = isDemo ? DEMO_MEMBERS : DEFAULT_MEMBERS;
+          setMembers(initialMembers);
+          localStorage.setItem(isDemo ? "gff_demo_members" : "gff_members", JSON.stringify(initialMembers));
         }
 
-        if (savedTxs) setTransactions(JSON.parse(savedTxs));
-        else {
-          setTransactions(DEFAULT_TRANSACTIONS);
-          localStorage.setItem("gff_transactions", JSON.stringify(DEFAULT_TRANSACTIONS));
+        if (savedTxs) {
+          setTransactions(JSON.parse(savedTxs));
+        } else {
+          const initialTxs = isDemo ? DEMO_TRANSACTIONS : DEFAULT_TRANSACTIONS;
+          setTransactions(initialTxs);
+          localStorage.setItem(isDemo ? "gff_demo_transactions" : "gff_transactions", JSON.stringify(initialTxs));
         }
 
-        if (savedChores) setChores(JSON.parse(savedChores));
-        else {
-          setChores(DEFAULT_CHORES);
-          localStorage.setItem("gff_chores", JSON.stringify(DEFAULT_CHORES));
+        if (savedChores) {
+          setChores(JSON.parse(savedChores));
+        } else {
+          const initialChores = isDemo ? DEMO_CHORES : DEFAULT_CHORES;
+          setChores(initialChores);
+          localStorage.setItem(isDemo ? "gff_demo_chores" : "gff_chores", JSON.stringify(initialChores));
         }
 
-        if (savedFinance) setFinanceData(JSON.parse(savedFinance));
-        else {
-          setFinanceData(DEFAULT_FINANCE_DATA);
-          localStorage.setItem("gff_finance", JSON.stringify(DEFAULT_FINANCE_DATA));
+        if (savedFinance) {
+          setFinanceData(JSON.parse(savedFinance));
+        } else {
+          const initialFinance = isDemo ? DEMO_FINANCE_DATA : DEFAULT_FINANCE_DATA;
+          setFinanceData(initialFinance);
+          localStorage.setItem(isDemo ? "gff_demo_finance" : "gff_finance", JSON.stringify(initialFinance));
         }
 
         const savedLang = localStorage.getItem("gff_language");
@@ -425,10 +627,18 @@ export default function Page() {
     setChores(updatedC);
     setFinanceData(updatedF);
 
-    localStorage.setItem("gff_members", JSON.stringify(updatedM));
-    localStorage.setItem("gff_transactions", JSON.stringify(updatedT));
-    localStorage.setItem("gff_chores", JSON.stringify(updatedC));
-    localStorage.setItem("gff_finance", JSON.stringify(updatedF));
+    const isDemo = localStorage.getItem("gff_is_demo") === "true";
+    if (isDemo) {
+      localStorage.setItem("gff_demo_members", JSON.stringify(updatedM));
+      localStorage.setItem("gff_demo_transactions", JSON.stringify(updatedT));
+      localStorage.setItem("gff_demo_chores", JSON.stringify(updatedC));
+      localStorage.setItem("gff_demo_finance", JSON.stringify(updatedF));
+    } else {
+      localStorage.setItem("gff_members", JSON.stringify(updatedM));
+      localStorage.setItem("gff_transactions", JSON.stringify(updatedT));
+      localStorage.setItem("gff_chores", JSON.stringify(updatedC));
+      localStorage.setItem("gff_finance", JSON.stringify(updatedF));
+    }
   };
 
   const performSystemReset = () => {
@@ -538,7 +748,21 @@ export default function Page() {
     setMasterEmailInput("");
     setMasterPasswordInput("");
     setIsMasterLoggedIn(true);
+    setIsDemoMode(true);
     localStorage.setItem("gff_master_session", "true");
+    localStorage.setItem("gff_is_demo", "true");
+
+    // Write transient demo configs dynamically
+    localStorage.setItem("gff_demo_members", JSON.stringify(DEMO_MEMBERS));
+    localStorage.setItem("gff_demo_transactions", JSON.stringify(DEMO_TRANSACTIONS));
+    localStorage.setItem("gff_demo_chores", JSON.stringify(DEMO_CHORES));
+    localStorage.setItem("gff_demo_finance", JSON.stringify(DEMO_FINANCE_DATA));
+
+    setMembers(DEMO_MEMBERS);
+    setTransactions(DEMO_TRANSACTIONS);
+    setChores(DEMO_CHORES);
+    setFinanceData(DEMO_FINANCE_DATA);
+
     setShowDemoExplanationModal(true);
   };
 
@@ -751,6 +975,25 @@ export default function Page() {
     setLoginStep("select_profile");
     setPortalView("master_login");
     localStorage.removeItem("gff_master_session");
+
+    // Reset demo storage and restore standard user keys if exiting demo mode
+    localStorage.removeItem("gff_is_demo");
+    localStorage.removeItem("gff_demo_members");
+    localStorage.removeItem("gff_demo_transactions");
+    localStorage.removeItem("gff_demo_chores");
+    localStorage.removeItem("gff_demo_finance");
+    setIsDemoMode(false);
+
+    // Reload standard user keys or fall back to default empty standard database
+    const savedMembers = localStorage.getItem("gff_members");
+    const savedTxs = localStorage.getItem("gff_transactions");
+    const savedChores = localStorage.getItem("gff_chores");
+    const savedFinance = localStorage.getItem("gff_finance");
+
+    setMembers(savedMembers ? JSON.parse(savedMembers) : DEFAULT_MEMBERS);
+    setTransactions(savedTxs ? JSON.parse(savedTxs) : DEFAULT_TRANSACTIONS);
+    setChores(savedChores ? JSON.parse(savedChores) : DEFAULT_CHORES);
+    setFinanceData(savedFinance ? JSON.parse(savedFinance) : DEFAULT_FINANCE_DATA);
   };
 
   const handleKeyPress = (num: string) => {
@@ -1104,8 +1347,16 @@ export default function Page() {
     if (!showGoalModal) return;
 
     const amountNum = parseFloat(goalContribution);
-    if (isNaN(amountNum) || amountNum <= 0 || amountNum > financeData.balance) {
-      alert("Valor inválido ou saldo da família insuficiente.");
+    if (isNaN(amountNum) || amountNum <= 0) {
+      alert("Valor inválido.");
+      return;
+    }
+
+    const isChild = activeMember?.role === "child";
+    const availableBalance = isChild ? activeMember.balance : financeData.balance;
+
+    if (amountNum > availableBalance) {
+      alert(isChild ? "Saldo pessoal insuficiente em seu cofre." : "Saldo da família insuficiente.");
       return;
     }
 
@@ -1113,24 +1364,51 @@ export default function Page() {
     const currentGoalData = (financeData.goals as Record<string, any>)[key];
     const newCurrent = Math.min(currentGoalData.target, currentGoalData.current + amountNum);
 
-    // Deduct from family main balance
-    const updatedFinance = {
-      ...financeData,
-      balance: financeData.balance - amountNum,
-      goals: {
-        ...financeData.goals,
-        [key]: {
-          ...currentGoalData,
-          current: newCurrent,
+    let updatedFinance = { ...financeData };
+    let updatedMembers = [...members];
+
+    if (isChild) {
+      // Deduct from child's personal balance
+      updatedMembers = members.map(m => {
+        if (m.id === activeMember.id) {
+          return { ...m, balance: m.balance - amountNum };
         }
-      }
-    };
+        return m;
+      });
+
+      // Update active member state as well
+      setActiveMember(prev => prev ? { ...prev, balance: prev.balance - amountNum } : null);
+
+      updatedFinance = {
+        ...financeData,
+        goals: {
+          ...financeData.goals,
+          [key]: {
+            ...currentGoalData,
+            current: newCurrent,
+          }
+        }
+      };
+    } else {
+      // Deduct from family main balance
+      updatedFinance = {
+        ...financeData,
+        balance: financeData.balance - amountNum,
+        goals: {
+          ...financeData.goals,
+          [key]: {
+            ...currentGoalData,
+            current: newCurrent,
+          }
+        }
+      };
+    }
 
     // Create a transaction record representing this saving goal allocation
     const goalTitle = currentGoalData?.title || (key === "travel" ? "Viagem" : "Emergência");
     const newTx: Transaction = {
       id: "tx-g-" + Date.now(),
-      description: `[Reserva: ${goalTitle}] Repasse Direto (Painel)`,
+      description: `[Reserva: ${goalTitle}] Contribuição de ${activeMember?.name || "Membro"}`,
       amount: amountNum,
       category: "Metas de Poupança",
       type: "expense",
@@ -1139,7 +1417,7 @@ export default function Page() {
     };
 
     const updatedTxs = [newTx, ...transactions];
-    syncWithStorage(members, updatedTxs, chores, updatedFinance);
+    syncWithStorage(updatedMembers, updatedTxs, chores, updatedFinance);
 
     setShowGoalModal(null);
     setGoalContribution("");
@@ -1439,28 +1717,82 @@ export default function Page() {
     localStorage.setItem("gff_currency", curr);
   };
 
-  // CLAIM A CHORE (CHILD ONLY)
+  // CLAIM A CHORE (CHILD OR ADMIN)
   const handleClaimChore = (choreId: string) => {
-    if (!activeMember || activeMember.role !== "child") return;
+    if (!activeMember) return;
 
     const targetChore = chores.find(c => c.id === choreId);
-    if (targetChore && financeData.balance < targetChore.reward) {
-      alert("O valor será pago assim que houver saldo disponível pelo administrador");
-    }
+    if (!targetChore) return;
 
-    const updatedChores = chores.map(c => {
-      if (c.id === choreId) {
-        return {
-          ...c,
-          status: "pending_approval" as const,
-          claimedBy: activeMember.id,
-          claimedByName: activeMember.name,
-        };
+    if (activeMember.role === "admin") {
+      // Admin flow: instantly approve and reward themselves!
+      const reward = targetChore.reward;
+      if (financeData.balance < reward) {
+        alert("O saldo da família é insuficiente para pagar esta recompensa no momento.");
+        return;
       }
-      return c;
-    });
 
-    syncWithStorage(members, transactions, updatedChores, financeData);
+      const updatedChores = chores.map(c => {
+        if (c.id === choreId) {
+          return {
+            ...c,
+            status: "completed" as const,
+            claimedBy: activeMember.id,
+            claimedByName: activeMember.name,
+          };
+        }
+        return c;
+      });
+
+      const updatedFinance = {
+        ...financeData,
+        balance: financeData.balance - reward,
+      };
+
+      const updatedMembers = members.map(m => {
+        if (m.id === activeMember.id) {
+          return { ...m, balance: m.balance + reward };
+        }
+        return m;
+      });
+
+      const adminName = activeMember.name;
+      setTimeout(() => {
+        const newTx: Transaction = {
+          id: "tx-c-" + Date.now(),
+          description: `🏆 Tarefa Concluída (Adm): ${targetChore.title}`,
+          amount: reward,
+          category: "Mesada",
+          type: "expense",
+          date: new Date().toISOString().split('T')[0],
+          member: adminName,
+        };
+
+        // Instantly sync activeMember visual balance too
+        setActiveMember(prev => prev ? { ...prev, balance: prev.balance + reward } : null);
+
+        syncWithStorage(updatedMembers, [newTx, ...transactions], updatedChores, updatedFinance);
+      }, 0);
+    } else {
+      // Child flow (pending approval)
+      if (financeData.balance < targetChore.reward) {
+        alert("O valor será pago assim que houver saldo disponível pelo administrador");
+      }
+
+      const updatedChores = chores.map(c => {
+        if (c.id === choreId) {
+          return {
+            ...c,
+            status: "pending_approval" as const,
+            claimedBy: activeMember.id,
+            claimedByName: activeMember.name,
+          };
+        }
+        return c;
+      });
+
+      syncWithStorage(members, transactions, updatedChores, financeData);
+    }
   };
 
   // APPROVE A CHORE (ADMIN ONLY)
@@ -2810,6 +3142,11 @@ export default function Page() {
   const finalStatementMemberId = statementMemberId || activeMember?.id || "";
 
   const filteredTxs = transactions.filter(tx => {
+    // Apply monthly filter if active (focusing on the year-month of June 2026: "2026-06")
+    if (periodMode === "monthly" && tx.date) {
+      if (!tx.date.startsWith("2026-06")) return false;
+    }
+
     if (ledgerAccountType === "all") return true;
     if (ledgerAccountType === "common") {
       return tx.accountType === "common" || !tx.accountType;
@@ -3133,6 +3470,44 @@ export default function Page() {
 
         {/* MAIN CONTAINER */}
         <main className="w-full max-w-7xl mx-auto px-4 py-6 md:px-8">
+
+          {/* PERIOD FILTER HEADER SELECTOR */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white border border-slate-100 rounded-3xl p-5 mb-6 shadow-sm">
+            <div>
+              <h2 className="font-extrabold text-slate-800 text-sm flex items-center gap-1.5">
+                <Calendar className="w-4 h-4 text-indigo-600" />
+                Modo de Visualização Temporal
+              </h2>
+              <p className="text-[10px] text-slate-400 mt-0.5 leading-tight">
+                Alterne entre visão histórica acumulada ou o foco mensal detalhado das finanças e metas do lar
+              </p>
+            </div>
+            
+            <div className="flex bg-slate-100/80 p-1 rounded-2xl border border-slate-200/50 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={() => setPeriodMode("all")}
+                className={`flex-1 sm:flex-initial text-center justify-center font-bold text-xs py-1.5 px-3.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
+                  periodMode === "all"
+                    ? "bg-white text-slate-900 shadow-sm"
+                    : "text-slate-500 hover:text-slate-950"
+                }`}
+              >
+                ♾️ Histórico Geral
+              </button>
+              <button
+                type="button"
+                onClick={() => setPeriodMode("monthly")}
+                className={`flex-1 sm:flex-initial text-center justify-center font-bold text-xs py-1.5 px-3.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
+                  periodMode === "monthly"
+                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/10"
+                    : "text-slate-500 hover:text-slate-950"
+                }`}
+              >
+                📅 Visão Mensal (Junho/2026)
+              </button>
+            </div>
+          </div>
         
         {/* VIEW 1: COFRE COMUM / CENTRAL DASHBOARD */}
         {activeTab === "dashboard" && (
@@ -3747,6 +4122,43 @@ export default function Page() {
                           />
                         </div>
 
+                        {/* MONTHLY OPT-IN PACING DETAILS */}
+                        {periodMode === "monthly" && (() => {
+                          const monthContrib = transactions.filter(tx => {
+                            const isMonth = tx.date?.startsWith("2026-06");
+                            const isGoalType = tx.category === "Metas de Poupança";
+                            const matchTitle = tx.description.toLowerCase().includes(title.toLowerCase()) || 
+                                               tx.description.toLowerCase().includes(goalKey.toLowerCase());
+                            return isMonth && isGoalType && matchTitle;
+                          }).reduce((sum, tx) => sum + tx.amount, 0);
+
+                          const monthlyPace = goal.target / 12;
+                          const pacePct = Math.min(100, Math.round((monthContrib / (monthlyPace || 1)) * 100));
+
+                          return (
+                            <div className="bg-indigo-50/50 rounded-xl p-2.5 border border-indigo-100/40 text-[10px] space-y-1.5 mt-2 animate-in fade-in duration-200">
+                              <div className="flex items-center justify-between font-bold text-indigo-950">
+                                <span className="flex items-center gap-1">📈 Guardado este mês:</span>
+                                <span className="font-mono text-indigo-750">{systemCurrency} {monthContrib.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                              </div>
+                              <div className="flex items-center justify-between text-slate-400">
+                                <span>🎯 Alvo mensal estim. (1 ano):</span>
+                                <span className="font-mono">{systemCurrency} {monthlyPace.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                              </div>
+                              {/* Mini progress bar for pacing */}
+                              <div className="w-full bg-slate-200/60 h-1.5 rounded-full overflow-hidden mt-1 relative">
+                                <div
+                                  className="h-full bg-indigo-500 transition-all duration-300"
+                                  style={{ width: `${pacePct}%` }}
+                                />
+                              </div>
+                              <div className="text-[9px] text-indigo-600 italic text-right font-medium">
+                                {pacePct}% do ritmo mensal atingido
+                              </div>
+                            </div>
+                          );
+                        })()}
+
                         <div className="flex justify-between items-center text-[10px] text-slate-400">
                           <span>{pct}% Concluído</span>
                           <div className="flex items-center gap-2">
@@ -3766,17 +4178,20 @@ export default function Page() {
                                   <Pencil className="w-2.5 h-2.5" /> Editar
                                 </button>
                                 <span className="text-slate-300">|</span>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setGoalContribution("");
-                                    setShowGoalModal(goalKey);
-                                  }}
-                                  className="text-indigo-600 hover:text-indigo-700 font-bold hover:underline cursor-pointer"
-                                >
-                                  + Contribuir
-                                </button>
                               </>
+                            )}
+
+                            {(activeMember?.role === "admin" || activeMember?.role === "child") && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setGoalContribution("");
+                                  setShowGoalModal(goalKey);
+                                }}
+                                className="text-indigo-600 hover:text-indigo-700 font-bold hover:underline cursor-pointer"
+                              >
+                                + Contribuir
+                              </button>
                             )}
                           </div>
                         </div>
@@ -3811,7 +4226,14 @@ export default function Page() {
                 </p>
 
                 <div className="space-y-4">
-                  {members.filter(m => m.role === "child" && m.id !== "m-3").map(kid => (
+                  {members
+                    .filter(m => {
+                      if (activeMember?.role === "child") {
+                        return m.id === activeMember.id;
+                      }
+                      return m.role === "child";
+                    })
+                    .map(kid => (
                     <div
                       key={kid.id}
                       className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between"
@@ -3960,18 +4382,18 @@ export default function Page() {
 
                         {/* 2. Interactive buttons based on membership role */}
                         
-                        {/* For DEPENDENT CHILDREN to CLAIM / SUBMIT a task */}
-                        {chore.status === "available" && activeMember && activeMember.role === "child" && (
-                          chore.assignedTo && chore.assignedTo !== activeMember.id ? (
+                        {/* For DEPENDENT CHILDREN or PARENTS to CLAIM / SUBMIT a task */}
+                        {chore.status === "available" && activeMember && (activeMember.role === "child" || activeMember.role === "admin") && (
+                          activeMember.role === "child" && chore.assignedTo && chore.assignedTo !== activeMember.id ? (
                             <span className="text-slate-400 italic text-xs font-semibold bg-slate-100/80 px-2.5 py-1 rounded-xl flex items-center gap-1">
                               🔒 Exclusiva de {chore.assignedToName?.split(" ")[0]}
                             </span>
                           ) : (
                             <button
                               onClick={() => handleClaimChore(chore.id)}
-                              className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs py-1.5 px-3 rounded-xl transition-all shadow-sm active:scale-95 whitespace-nowrap"
+                              className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs py-1.5 px-3 rounded-xl transition-all shadow-sm active:scale-95 whitespace-nowrap cursor-pointer"
                             >
-                              Concluí essa tarefa! 🚀
+                              {activeMember.role === "admin" ? "Realizar e Receber! 🏆" : "Concluí essa tarefa! 🚀"}
                             </button>
                           )
                         )}
@@ -4230,7 +4652,7 @@ export default function Page() {
                                   <p className="text-sm font-extrabold text-slate-800">
                                     {systemCurrency} {m.balance.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </p>
-                                  {m.role === "child" && m.id !== "m-3" && (
+                                  {m.role === "child" && (m.id !== "m-3" || activeMember?.id === "m-3" || activeMember?.role === "admin") && (
                                     <p className="text-[10px] text-indigo-600 font-mono">
                                       Limite Mesada: {systemCurrency} {m.allowance.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </p>
@@ -4533,28 +4955,30 @@ export default function Page() {
                 </div>
 
                 {/* 3.1 SYSTEM MAINTENANCE & DESTRUCTIVE RESET */}
-                <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-4">
-                  <div>
-                    <h3 className="font-extrabold text-rose-700 text-sm flex items-center gap-2">
-                      <AlertCircle className="w-5 h-5 text-rose-600 animate-pulse" />
-                      Manutenção & Reinício
-                    </h3>
-                    <p className="text-xs text-slate-400 mt-0.5">Zerar e redefinir o ambiente local do sistema familiar</p>
+                {!isDemoMode && (
+                  <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-4">
+                    <div>
+                      <h3 className="font-extrabold text-rose-700 text-sm flex items-center gap-2">
+                        <AlertCircle className="w-5 h-5 text-rose-600 animate-pulse" />
+                        Manutenção & Reinício
+                      </h3>
+                      <p className="text-xs text-slate-400 mt-0.5">Zerar e redefinir o ambiente local do sistema familiar</p>
+                    </div>
+
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                      Se você adicionou lançamentos de teste ou deseja limpar o cofre comum com transações fictícias para iniciar do zero com sua própria família, use o botão abaixo.
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={handleResetSystem}
+                      className="w-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 hover:border-rose-300 font-extrabold text-xs py-2.5 px-4 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                    >
+                      <Trash2 className="w-4 h-4 text-rose-600" />
+                      Zerar Todos os Lançamentos (Resetar Sistema)
+                    </button>
                   </div>
-
-                  <p className="text-[11px] text-slate-500 leading-relaxed">
-                    Se você adicionou lançamentos de teste ou deseja limpar o cofre comum com transações fictícias para iniciar do zero com sua própria família, use o botão abaixo.
-                  </p>
-
-                  <button
-                    type="button"
-                    onClick={handleResetSystem}
-                    className="w-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 hover:border-rose-300 font-extrabold text-xs py-2.5 px-4 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
-                  >
-                    <Trash2 className="w-4 h-4 text-rose-600" />
-                    Zerar Todos os Lançamentos (Resetar Sistema)
-                  </button>
-                </div>
+                )}
 
                 {/* 4. CRUD FOR METAS DE POUPANÇA COLETIVAS */}
                 <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-sm space-y-6">
@@ -5177,7 +5601,7 @@ export default function Page() {
                   type="number"
                   step="0.01"
                   required
-                  max={financeData.balance}
+                  max={activeMember?.role === "child" ? activeMember.balance : financeData.balance}
                   value={goalContribution}
                   onChange={(e) => setGoalContribution(e.target.value)}
                   placeholder="0,00"
@@ -5186,9 +5610,18 @@ export default function Page() {
               </div>
 
               <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                <p className="text-[11px] text-slate-500 leading-normal">
-                  💵 <span className="font-bold">Saldo do Cofre Comum:</span> R$ {financeData.balance.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} <br />
-                  A quantia inserida será removida do tesouro comum e reservada na meta selecionada.
+                <p className="text-[11px] text-slate-500 leading-normal text-slate-600">
+                  {activeMember?.role === "child" ? (
+                    <>
+                      🪙 <span className="font-extrabold text-indigo-700">Seu Saldo Pessoal:</span> R$ {(activeMember?.balance || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <br />
+                      Esta quantia será sacada do seu cofre individual de dependente e transferida como investimento para a meta da família!
+                    </>
+                  ) : (
+                    <>
+                      💵 <span className="font-extrabold text-indigo-700">Saldo do Cofre Comum:</span> R$ {financeData.balance.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <br />
+                      A quantia inserida será removida do tesouro comum e reservada na meta selecionada.
+                    </>
+                  )}
                 </p>
               </div>
 
