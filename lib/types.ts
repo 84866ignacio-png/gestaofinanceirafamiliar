@@ -58,6 +58,17 @@ export interface FamilyFinanceData {
     };
   };
   assets?: FamilyAsset[];
+  transfers?: GoalTransfer[];
+}
+
+export interface GoalTransfer {
+  id: string;
+  date: string; // DD/MM/YYYY
+  time: string; // HH:MM:SS
+  amount: number;
+  fromName: string;
+  goalTitle: string;
+  type: "contribution" | "rescue";
 }
 
 export interface FamilyAsset {

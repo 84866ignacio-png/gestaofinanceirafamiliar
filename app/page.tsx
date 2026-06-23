@@ -109,7 +109,8 @@ const DEFAULT_FINANCE_DATA: FamilyFinanceData = {
       target: 15000.00,
     },
   },
-  assets: []
+  assets: [],
+  transfers: []
 };
 
 const DEMO_MEMBERS: FamilyMember[] = [
@@ -166,7 +167,7 @@ const DEMO_TRANSACTIONS: Transaction[] = [
     amount: 6500.00,
     category: "Trabalho",
     type: "income",
-    date: "2026-06-05",
+    date: "05/06/2026",
     member: "Júlio (Pai)",
   },
   {
@@ -175,7 +176,7 @@ const DEMO_TRANSACTIONS: Transaction[] = [
     amount: 1200.00,
     category: "Trabalho",
     type: "income",
-    date: "2026-06-10",
+    date: "10/06/2026",
     member: "Janaína (Mãe)",
   },
   {
@@ -184,7 +185,7 @@ const DEMO_TRANSACTIONS: Transaction[] = [
     amount: 1800.00,
     category: "Moradia",
     type: "expense",
-    date: "2026-06-12",
+    date: "12/06/2026",
     member: "Janaína (Mãe)",
   },
   {
@@ -193,7 +194,7 @@ const DEMO_TRANSACTIONS: Transaction[] = [
     amount: 420.50,
     category: "Alimentação",
     type: "expense",
-    date: "2026-06-18",
+    date: "18/06/2026",
     member: "Júlio (Pai)",
   },
   {
@@ -202,7 +203,7 @@ const DEMO_TRANSACTIONS: Transaction[] = [
     amount: 35.00,
     category: "Lazer",
     type: "expense",
-    date: "2026-06-19",
+    date: "19/06/2026",
     member: "Júnior (Filho)",
   },
 ];
@@ -266,7 +267,7 @@ const DEMO_FINANCE_DATA: FamilyFinanceData = {
       value: 320000.00,
       owner: "Família",
       description: "Apartamento de 2 quartos gerando renda mensal de aluguel.",
-      updatedAt: "2026-06-22"
+      updatedAt: "22/06/2026"
     },
     {
       id: "asset-2",
@@ -275,7 +276,7 @@ const DEMO_FINANCE_DATA: FamilyFinanceData = {
       value: 45000.00,
       owner: "Júlio (Pai)",
       description: "Rendimento de 100% do CDI, de alta liquidez para oportunidades.",
-      updatedAt: "2026-06-22"
+      updatedAt: "22/06/2026"
     },
     {
       id: "asset-3",
@@ -284,7 +285,7 @@ const DEMO_FINANCE_DATA: FamilyFinanceData = {
       value: 95000.00,
       owner: "Família",
       description: "Carro principal de uso familiar de 2024.",
-      updatedAt: "2026-06-22"
+      updatedAt: "22/06/2026"
     },
     {
       id: "asset-4",
@@ -293,7 +294,36 @@ const DEMO_FINANCE_DATA: FamilyFinanceData = {
       value: 34000.00,
       owner: "Janaína (Mãe)",
       description: "Ações de dividendos e fundos imobiliários.",
-      updatedAt: "2026-06-22"
+      updatedAt: "22/06/2026"
+    }
+  ],
+  transfers: [
+    {
+      id: "tr-1",
+      date: "15/06/2026",
+      time: "14:32:10",
+      amount: 150.00,
+      fromName: "Júlio (Pai)",
+      goalTitle: "Viagem de Férias",
+      type: "contribution"
+    },
+    {
+      id: "tr-2",
+      date: "18/06/2026",
+      time: "09:15:45",
+      amount: 50.00,
+      fromName: "Lucas (Filho)",
+      goalTitle: "Viagem de Férias",
+      type: "contribution"
+    },
+    {
+      id: "tr-3",
+      date: "20/06/2026",
+      time: "17:40:22",
+      amount: 300.00,
+      fromName: "Janaína (Mãe)",
+      goalTitle: "Reserva de Emergência",
+      type: "contribution"
     }
   ]
 };
@@ -485,6 +515,61 @@ export default function Page() {
   const [editTxCategory, setEditTxCategory] = useState<string>("Alimentação");
   const [editTxMember, setEditTxMember] = useState("");
   const [editTxGoalKey, setEditTxGoalKey] = useState<string>("");
+
+  // Transaction date selectors & month navigators
+  const [txDateInput, setTxDateInput] = useState<string>(new Date().toISOString().split("T")[0]);
+  const [editTxDate, setEditTxDate] = useState<string>(new Date().toISOString().split("T")[0]);
+  const [filterMonth, setFilterMonth] = useState<number>(6); // June
+  const [filterYear, setFilterYear] = useState<number>(2026);
+
+  const getTodayFormatted = () => {
+    const d = new Date();
+    const pad = (n: number) => n.toString().padStart(2, "0");
+    return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+  };
+
+  const isTxInPeriod = (dateStr: string, m: number, y: number) => {
+    if (!dateStr) return false;
+    // YYYY-MM-DD
+    if (dateStr.includes("-")) {
+      const parts = dateStr.split("-");
+      if (parts.length === 3) {
+        const yearPart = parseInt(parts[0], 10);
+        const monthPart = parseInt(parts[1], 10);
+        return yearPart === y && monthPart === m;
+      }
+    }
+    // DD/MM/YYYY
+    if (dateStr.includes("/")) {
+      const parts = dateStr.split("/");
+      if (parts.length === 3) {
+        const monthPart = parseInt(parts[1], 10);
+        const yearPart = parseInt(parts[2], 10);
+        return yearPart === y && monthPart === m;
+      }
+    }
+    return false;
+  };
+
+  const handlePrevMonth = () => {
+    setFilterMonth((current) => {
+      if (current === 1) {
+        setFilterYear((y) => y - 1);
+        return 12;
+      }
+      return current - 1;
+    });
+  };
+
+  const handleNextMonth = () => {
+    setFilterMonth((current) => {
+      if (current === 12) {
+        setFilterYear((y) => y + 1);
+        return 1;
+      }
+      return current + 1;
+    });
+  };
 
   // System Language and Currency Settings
   const [systemCurrency, setSystemCurrency] = useState<string>("R$");
@@ -1225,13 +1310,24 @@ export default function Page() {
       finalDesc = `[${prefix}: ${goalText}] ` + txDesc;
     }
 
+    let formattedDate = "";
+    if (txDateInput) {
+      const parts = txDateInput.split("-"); // [YYYY, MM, DD]
+      if (parts.length === 3) {
+        formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+    }
+    if (!formattedDate) {
+      formattedDate = getTodayFormatted();
+    }
+
     const newTx: Transaction = {
       id: "tx-" + Date.now(),
       description: finalDesc,
       amount: amountNum,
       category: txCategory as any,
       type: txType,
-      date: new Date().toISOString().split('T')[0],
+      date: formattedDate,
       member: authorName,
       accountType: txCategory === "Metas de Poupança" ? "common" : txAccountType,
     };
@@ -1250,6 +1346,21 @@ export default function Page() {
 
       const currentGoalData = (financeData.goals as Record<string, any>)[txGoalKey];
       const goalName = currentGoalData?.title || (txGoalKey === "travel" ? "Viagem" : txGoalKey === "emergency" ? "Emergência" : txGoalKey);
+
+      // Create goal transfer log
+      const now = new Date();
+      const pad2 = (n: number) => n.toString().padStart(2, "0");
+      const timeStr = `${pad2(now.getHours())}:${pad2(now.getMinutes())}:${pad2(now.getSeconds())}`;
+
+      const newTransfer = {
+        id: "tr-" + Date.now(),
+        date: formattedDate,
+        time: timeStr,
+        amount: amountNum,
+        fromName: authorName,
+        goalTitle: goalName,
+        type: txType === "expense" ? ("contribution" as const) : ("rescue" as const)
+      };
 
       if (txType === "expense") {
         // Contribution (expense)
@@ -1272,7 +1383,8 @@ export default function Page() {
               ...currentGoalData,
               current: newCurrent
             }
-          }
+          },
+          transfers: [newTransfer, ...(financeData.transfers || [])]
         };
       } else {
         // Rescue / Withdrawal (income)
@@ -1293,7 +1405,8 @@ export default function Page() {
               ...currentGoalData,
               current: newCurrent
             }
-          }
+          },
+          transfers: [newTransfer, ...(financeData.transfers || [])]
         };
       }
     } else {
@@ -1339,6 +1452,7 @@ export default function Page() {
     setTxType("expense");
     setTxGoalKey("");
     setTxAccountType("common");
+    setTxDateInput(new Date().toISOString().split("T")[0]);
   };
 
   // DELETE TRANSACTION
@@ -1565,27 +1679,50 @@ export default function Page() {
       // Deduct from family main balance
       updatedFinance = {
         ...financeData,
-        balance: financeData.balance - amountNum,
         goals: {
           ...financeData.goals,
           [key]: {
             ...currentGoalData,
             current: newCurrent,
           }
-        }
+        },
+        balance: financeData.balance - amountNum,
       };
     }
 
     // Create a transaction record representing this saving goal allocation
     const goalTitle = currentGoalData?.title || (key === "travel" ? "Viagem" : "Emergência");
+    const todayStr = getTodayFormatted();
+
     const newTx: Transaction = {
       id: "tx-g-" + Date.now(),
       description: `[Reserva: ${goalTitle}] Contribuição de ${activeMember?.name || "Membro"}`,
       amount: amountNum,
       category: "Metas de Poupança",
       type: "expense",
-      date: new Date().toISOString().split('T')[0],
+      date: todayStr,
       member: activeMember?.name || "Família",
+      accountType: isChild ? "individual" : "common",
+    };
+
+    // Create goal transfer log
+    const now = new Date();
+    const pad2 = (n: number) => n.toString().padStart(2, "0");
+    const timeStr = `${pad2(now.getHours())}:${pad2(now.getMinutes())}:${pad2(now.getSeconds())}`;
+
+    const newTransfer = {
+      id: "tr-" + Date.now(),
+      date: todayStr,
+      time: timeStr,
+      amount: amountNum,
+      fromName: activeMember?.name || "Membro",
+      goalTitle: goalTitle,
+      type: "contribution" as const
+    };
+
+    updatedFinance = {
+      ...updatedFinance,
+      transfers: [newTransfer, ...(financeData.transfers || [])]
     };
 
     const updatedTxs = [newTx, ...transactions];
@@ -1778,7 +1915,7 @@ export default function Page() {
         amount: refundAmt,
         category: "Disparadores Extraordinários" as any,
         type: "income",
-        date: new Date().toISOString().split('T')[0],
+        date: getTodayFormatted(),
         member: activeMember.name,
       };
 
@@ -1805,7 +1942,7 @@ export default function Page() {
       value: valNum,
       owner: addAssetOwner || "Família",
       description: addAssetDescription.trim(),
-      updatedAt: new Date().toISOString().split("T")[0]
+      updatedAt: getTodayFormatted()
     };
 
     const currentAssets = financeData.assets || [];
@@ -1846,7 +1983,7 @@ export default function Page() {
           value: valNum,
           owner: editAssetOwner || "Família",
           description: editAssetDescription.trim(),
-          updatedAt: new Date().toISOString().split("T")[0]
+          updatedAt: getTodayFormatted()
         };
       }
       return asset;
@@ -1936,7 +2073,7 @@ export default function Page() {
           amount: reward,
           category: "Mesada",
           type: "expense",
-          date: new Date().toISOString().split('T')[0],
+          date: getTodayFormatted(),
           member: adminName,
         };
 
@@ -2005,7 +2142,7 @@ export default function Page() {
       amount: reward,
       category: "Mesada",
       type: "expense",
-      date: new Date().toISOString().split('T')[0],
+      date: getTodayFormatted(),
       member: choreInput.claimedByName || "Filho",
     };
 
@@ -2095,6 +2232,18 @@ export default function Page() {
     setEditTxType(tx.type);
     setEditTxCategory(tx.category);
     setEditTxMember(tx.member);
+
+    // Parse specific date format DD/MM/YYYY with fallback YYYY-MM-DD
+    if (tx.date && tx.date.includes("/")) {
+      const parts = tx.date.split("/"); // [DD, MM, YYYY]
+      if (parts.length === 3) {
+        setEditTxDate(`${parts[2]}-${parts[1]}-${parts[0]}`);
+      }
+    } else if (tx.date && tx.date.includes("-")) {
+      setEditTxDate(tx.date);
+    } else {
+      setEditTxDate(new Date().toISOString().split("T")[0]);
+    }
 
     // Parse the goal key
     let goalKey = "";
@@ -2218,6 +2367,17 @@ export default function Page() {
       }
     }
 
+    let formattedEditDate = "";
+    if (editTxDate) {
+      const parts = editTxDate.split("-");
+      if (parts.length === 3) {
+        formattedEditDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+    }
+    if (!formattedEditDate) {
+      formattedEditDate = editingTx.date || getTodayFormatted();
+    }
+
     // Construct the updated transaction object
     const updatedTx: Transaction = {
       ...editingTx,
@@ -2225,6 +2385,7 @@ export default function Page() {
       amount: amountNum,
       category: editTxCategory as any,
       type: editTxType,
+      date: formattedEditDate,
       member: editTxMember || editingTx.member
     };
 
@@ -3314,9 +3475,9 @@ export default function Page() {
   const finalStatementMemberId = statementMemberId || activeMember?.id || "";
 
   const filteredTxs = transactions.filter(tx => {
-    // Apply monthly filter if active (focusing on the year-month of June 2026: "2026-06")
+    // Apply monthly filter dynamically
     if (periodMode === "monthly" && tx.date) {
-      if (!tx.date.startsWith("2026-06")) return false;
+      if (!isTxInPeriod(tx.date, filterMonth, filterYear)) return false;
     }
 
     if (ledgerAccountType === "all") return true;
@@ -3333,6 +3494,24 @@ export default function Page() {
     }
     return true;
   });
+
+  const displayExpensesTotal = periodMode === "all"
+    ? financeData.totalExpenses
+    : transactions
+        .filter(t => t.type === "expense" && (t.accountType === "common" || !t.accountType) && isTxInPeriod(t.date, filterMonth, filterYear))
+        .reduce((sum, t) => sum + t.amount, 0);
+
+  const displayIncomeTotal = periodMode === "all"
+    ? transactions.filter(t => t.type === "income").reduce((sum, t) => sum + t.amount, 0)
+    : transactions
+        .filter(t => t.type === "income" && isTxInPeriod(t.date, filterMonth, filterYear))
+        .reduce((sum, t) => sum + t.amount, 0);
+
+  const displayRawExpensesTotal = periodMode === "all"
+    ? financeData.totalExpenses
+    : transactions
+        .filter(t => t.type === "expense" && isTxInPeriod(t.date, filterMonth, filterYear))
+        .reduce((sum, t) => sum + t.amount, 0);
 
   // RENDER COMPLETE FAMILY FINANCIAL PORTAL / DASHBOARD
   return (
@@ -3617,41 +3796,74 @@ export default function Page() {
         <main className="w-full max-w-7xl mx-auto px-4 py-6 md:px-8">
 
           {/* PERIOD FILTER HEADER SELECTOR */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white border border-slate-100 rounded-3xl p-5 mb-6 shadow-sm">
-            <div>
-              <h2 className="font-extrabold text-slate-800 text-sm flex items-center gap-1.5">
-                <Calendar className="w-4 h-4 text-indigo-600" />
-                Modo de Visualização Temporal
-              </h2>
-              <p className="text-[10px] text-slate-400 mt-0.5 leading-tight">
-                Alterne entre visão histórica acumulada ou o foco mensal detalhado das finanças e metas do lar
-              </p>
+          <div className="bg-white border border-slate-100 rounded-3xl p-5 mb-6 shadow-sm flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="font-extrabold text-slate-800 text-sm flex items-center gap-1.5">
+                  <Calendar className="w-4 h-4 text-indigo-600" />
+                  Modo de Visualização Temporal
+                </h2>
+                <p className="text-[10px] text-slate-400 mt-0.5 leading-tight">
+                  Alterne entre visão histórica acumulada ou o foco mensal detalhado das finanças e metas do lar
+                </p>
+              </div>
+              
+              <div className="flex bg-slate-100/80 p-1 rounded-2xl border border-slate-200/50 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setPeriodMode("all")}
+                  className={`flex-1 sm:flex-initial text-center justify-center font-bold text-xs py-1.5 px-3.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
+                    periodMode === "all"
+                      ? "bg-white text-slate-900 shadow-sm"
+                      : "text-slate-500 hover:text-slate-950"
+                  }`}
+                >
+                  ♾️ Histórico Geral
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPeriodMode("monthly")}
+                  className={`flex-1 sm:flex-initial text-center justify-center font-bold text-xs py-1.5 px-3.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
+                    periodMode === "monthly"
+                      ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/10"
+                      : "text-slate-500 hover:text-slate-950"
+                  }`}
+                >
+                  📅 Visão Mensal
+                </button>
+              </div>
             </div>
-            
-            <div className="flex bg-slate-100/80 p-1 rounded-2xl border border-slate-200/50 w-full sm:w-auto">
-              <button
-                type="button"
-                onClick={() => setPeriodMode("all")}
-                className={`flex-1 sm:flex-initial text-center justify-center font-bold text-xs py-1.5 px-3.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
-                  periodMode === "all"
-                    ? "bg-white text-slate-900 shadow-sm"
-                    : "text-slate-500 hover:text-slate-950"
-                }`}
-              >
-                ♾️ Histórico Geral
-              </button>
-              <button
-                type="button"
-                onClick={() => setPeriodMode("monthly")}
-                className={`flex-1 sm:flex-initial text-center justify-center font-bold text-xs py-1.5 px-3.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
-                  periodMode === "monthly"
-                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/10"
-                    : "text-slate-500 hover:text-slate-950"
-                }`}
-              >
-                📅 Visão Mensal (Junho/2026)
-              </button>
-            </div>
+
+            {/* MONTHLY NAVIGATION SUBBAR */}
+            {periodMode === "monthly" && (
+              <div className="flex items-center justify-between bg-indigo-50/40 border border-indigo-100/40 rounded-2xl px-4 py-2.5 animate-in fade-in slide-in-from-top-1 duration-200">
+                <button
+                  type="button"
+                  onClick={handlePrevMonth}
+                  className="p-1 px-3 bg-white text-indigo-700 hover:bg-indigo-50 border border-indigo-100 rounded-xl font-bold text-xs cursor-pointer flex items-center gap-1 transition-all active:scale-95"
+                >
+                  ◀️ Anterior
+                </button>
+                
+                <div className="text-center font-extrabold text-xs text-indigo-950 uppercase tracking-wider flex items-center gap-2">
+                  <span>📅</span>
+                  <span>
+                    {[
+                      "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+                      "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+                    ][filterMonth - 1]} de {filterYear}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleNextMonth}
+                  className="p-1 px-3 bg-white text-indigo-700 hover:bg-indigo-50 border border-indigo-100 rounded-xl font-bold text-xs cursor-pointer flex items-center gap-1 transition-all active:scale-95"
+                >
+                  Próximo ▶️
+                </button>
+              </div>
+            )}
           </div>
         
         {/* VIEW 1: COFRE COMUM / CENTRAL DASHBOARD */}
@@ -3792,22 +4004,22 @@ export default function Page() {
                     <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
                       <div
                         className={`h-full transition-all duration-500 rounded-full ${
-                          financeData.totalExpenses > financeData.budgetLimit
+                          displayExpensesTotal > financeData.budgetLimit
                             ? "bg-rose-500"
-                            : (financeData.totalExpenses / financeData.budgetLimit) > 0.8
+                            : (displayExpensesTotal / financeData.budgetLimit) > 0.8
                             ? "bg-amber-500"
                             : "bg-indigo-600"
                         }`}
-                        style={{ width: `${Math.min(100, (financeData.totalExpenses / financeData.budgetLimit) * 100)}%` }}
+                        style={{ width: `${Math.min(100, (displayExpensesTotal / financeData.budgetLimit) * 100)}%` }}
                       />
                     </div>
 
                     <div className="flex justify-between items-center mt-2.5">
                       <span className="text-[11px] text-slate-400">
-                        {((financeData.totalExpenses / financeData.budgetLimit) * 100).toFixed(0)}% Utilizado
+                        {((displayExpensesTotal / financeData.budgetLimit) * 100).toFixed(0)}% Utilizado
                       </span>
                       <span className="text-[11px] text-slate-400">
-                        Despesas: R$ {financeData.totalExpenses.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}
+                        Despesas: R$ {displayExpensesTotal.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}
                       </span>
                     </div>
 
@@ -3834,7 +4046,7 @@ export default function Page() {
                     </div>
                     <div>
                       <p className="text-[10px] text-slate-400 font-bold uppercase">Total Recebido</p>
-                      <p className="text-sm font-bold text-slate-700">R$ {transactions.filter(t => t.type === "income").reduce((sum, t) => sum + t.amount, 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                      <p className="text-sm font-bold text-slate-700">R$ {displayIncomeTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                     </div>
                   </div>
 
@@ -3844,7 +4056,7 @@ export default function Page() {
                     </div>
                     <div>
                       <p className="text-[10px] text-slate-400 font-bold uppercase">Total de Saídas</p>
-                      <p className="text-sm font-bold text-slate-700">R$ {financeData.totalExpenses.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}</p>
+                      <p className="text-sm font-bold text-slate-700">R$ {displayRawExpensesTotal.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}</p>
                     </div>
                   </div>
                 </div>
@@ -4241,7 +4453,7 @@ export default function Page() {
                         {/* MONTHLY OPT-IN PACING DETAILS */}
                         {periodMode === "monthly" && (() => {
                           const monthContrib = transactions.filter(tx => {
-                            const isMonth = tx.date?.startsWith("2026-06");
+                            const isMonth = tx.date ? isTxInPeriod(tx.date, filterMonth, filterYear) : false;
                             const isGoalType = tx.category === "Metas de Poupança";
                             const matchTitle = tx.description.toLowerCase().includes(title.toLowerCase()) || 
                                                tx.description.toLowerCase().includes(goalKey.toLowerCase());
@@ -4314,6 +4526,47 @@ export default function Page() {
                       </div>
                     );
                   })}
+                </div>
+
+                {/* GOAL TRANSFER REPORT */}
+                <div className="border-t border-slate-100 pt-5 mt-5">
+                  <h4 className="font-extrabold text-slate-800 text-xs flex items-center gap-2 mb-3">
+                    <span>📊 Relatório de Transferências (Metas)</span>
+                    <span className="text-[8.5px] uppercase bg-indigo-50 border border-indigo-100 text-indigo-700 py-0.5 px-1.5 rounded-full font-bold">
+                      Público do Lar
+                    </span>
+                  </h4>
+                  
+                  {(!financeData.transfers || financeData.transfers.length === 0) ? (
+                    <div className="text-center py-4 bg-slate-50/50 rounded-2xl border border-slate-100/50 text-[10px] text-slate-400 font-mono">
+                      Nenhuma transferência registrada até o momento.
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-52 overflow-y-auto pr-1 scrollbar-thin">
+                      {[...financeData.transfers].reverse().map((transfer, idx) => {
+                        const isCont = transfer.type === "contribution" || !transfer.type;
+                        return (
+                          <div key={idx} className="bg-slate-50 border border-slate-100 p-2 rounded-xl text-[10px] flex items-center justify-between gap-2.5 transition-all hover:bg-white hover:shadow-xs">
+                            <div className="flex flex-col min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                  <span className={`w-1.5 h-1.5 rounded-full ${isCont ? "bg-emerald-500" : "bg-rose-500"}`} />
+                                <span className="font-bold text-slate-700 truncate">{transfer.who} &rarr; {transfer.goalTitle}</span>
+                              </div>
+                              <div className="text-slate-400 font-mono text-[9px] mt-0.5 whitespace-nowrap">
+                                {transfer.date} às {transfer.time || "00:00"}
+                              </div>
+                            </div>
+                            
+                            <div className="flex-shrink-0 text-right font-mono font-black text-[11px]">
+                              <span className={isCont ? "text-emerald-600" : "text-rose-600"}>
+                                {isCont ? "+" : "-"} R$ {transfer.amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
               </div>
