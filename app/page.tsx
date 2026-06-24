@@ -1006,6 +1006,55 @@ export default function Page() {
       return;
     }
 
+    // Intercept test account for real non-demo testing area with pre-seeded data
+    if (email.toLowerCase() === "teste@teste.com" && password === "1234") {
+      setIsMasterLoggedIn(true);
+      setIsDemoMode(false);
+      localStorage.setItem("gff_is_demo", "false");
+      if (rememberMe) {
+        localStorage.setItem("gff_master_session", "true");
+      } else {
+        localStorage.removeItem("gff_master_session");
+      }
+
+      const hasSeeded = localStorage.getItem("gff_has_seeded_teste") === "true";
+      if (!hasSeeded) {
+        localStorage.setItem("gff_members", JSON.stringify(DEMO_MEMBERS));
+        localStorage.setItem("gff_transactions", JSON.stringify(DEMO_TRANSACTIONS));
+        localStorage.setItem("gff_chores", JSON.stringify(DEMO_CHORES));
+        localStorage.setItem("gff_finance", JSON.stringify(DEMO_FINANCE_DATA));
+        localStorage.setItem("gff_has_seeded_teste", "true");
+
+        setMembers(DEMO_MEMBERS);
+        setTransactions(DEMO_TRANSACTIONS);
+        setChores(DEMO_CHORES);
+        setFinanceData(DEMO_FINANCE_DATA);
+      } else {
+        // Load the existing real data
+        const savedMembers = localStorage.getItem("gff_members");
+        const savedTxs = localStorage.getItem("gff_transactions");
+        const savedChores = localStorage.getItem("gff_chores");
+        const savedFinance = localStorage.getItem("gff_finance");
+
+        if (savedMembers) setMembers(JSON.parse(savedMembers));
+        if (savedTxs) setTransactions(JSON.parse(savedTxs));
+        if (savedChores) setChores(JSON.parse(savedChores));
+        if (savedFinance) setFinanceData(JSON.parse(savedFinance));
+      }
+
+      // Pre-save master account of "teste@teste.com" so it's registered
+      const testeAcct = {
+        email: "teste@teste.com",
+        password: "1234",
+        familyName: "Teste"
+      };
+      localStorage.setItem("gff_master_account", JSON.stringify(testeAcct));
+
+      setMasterEmailInput("");
+      setMasterPasswordInput("");
+      return;
+    }
+
     const savedAccountStr = localStorage.getItem("gff_master_account");
     if (savedAccountStr) {
       const savedAccount = JSON.parse(savedAccountStr);
@@ -1108,7 +1157,7 @@ export default function Page() {
       if (savedAccount.email.toLowerCase() === email.toLowerCase()) {
         isMatch = true;
       }
-    } else if (email.toLowerCase() === "roberto.silva@email.com") {
+    } else if (email.toLowerCase() === "roberto.silva@email.com" || email.toLowerCase() === "teste@teste.com") {
       isMatch = true;
     }
 
@@ -2820,10 +2869,16 @@ export default function Page() {
                       </button>
 
                       {/* Seed demo credentials aid */}
-                      <div className="mt-6 bg-indigo-50/50 rounded-2xl p-4 border border-indigo-100/50">
+                      <div className="mt-6 bg-indigo-50/50 rounded-2xl p-4 border border-indigo-100/50 space-y-2">
                         <p className="text-[10px] text-slate-500 leading-normal font-semibold">
-                          💡 <span className="font-extrabold text-indigo-700 uppercase tracking-widest">Instruções para Primeiro Acesso:</span> <br/>
-                          Ao acessar o modo de demonstração, o sistema carregará uma família fictícia e abrirá o <strong>Guia Completo de Uso</strong> detalhando como testar o controle de mesadas, tarefas de filhos, metas coletivas e conselhos por Inteligência Artificial!
+                          💡 <span className="font-extrabold text-indigo-700 uppercase tracking-widest">Área Real de Testes (Não-Demo):</span> <br/>
+                          Para testar o ambiente real com lançamentos pré-populados de teste no primeiro acesso, faça login com: <br/>
+                          <span className="font-bold text-indigo-650">E-mail:</span> <code className="bg-white/80 border border-indigo-100 px-1 py-0.5 rounded font-mono text-indigo-700 font-extrabold">teste@teste.com</code><br/>
+                          <span className="font-bold text-indigo-650">Senha:</span> <code className="bg-white/80 border border-indigo-100 px-1 py-0.5 rounded font-mono text-indigo-700 font-extrabold">1234</code>
+                        </p>
+                        <p className="text-[10px] text-slate-400 leading-normal font-medium border-t border-indigo-100/30 pt-1.5">
+                          💡 <span className="font-extrabold text-indigo-500 uppercase tracking-widest">Modo Demonstrativo (DEMO):</span> <br/>
+                          Ao acessar o modo de demonstração, o sistema carregará uma família fictícia e abrirá o <strong>Guia Completo de Uso</strong> detalhando as metas, tarefas, mesadas e Inteligência Artificial.
                         </p>
                       </div>
 
