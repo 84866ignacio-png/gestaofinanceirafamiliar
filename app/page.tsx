@@ -870,33 +870,37 @@ export default function Page() {
   };
 
   const performSystemReset = () => {
-    // Apaga completamente os usuários, transações, tarefas, ativos, metas e fundo comum para começar do zero absoluto
-    const emptyMembers: FamilyMember[] = [];
+    // Preserva os membros cadastrados, apenas zerando seus saldos individuais para começar do zero
+    const preservedMembers = members.map(m => ({
+      ...m,
+      balance: 0.00
+    }));
     const emptyTransactions: Transaction[] = [];
     const emptyChores: Chore[] = [];
     const emptyFinanceData: FamilyFinanceData = {
       balance: 0.00,
-      budgetLimit: 0.00,
+      budgetLimit: 4000.00,
       totalExpenses: 0.00,
       goals: {
         travel: {
           current: 0.00,
-          target: 0.00,
+          target: 8000.00,
         },
         emergency: {
           current: 0.00,
-          target: 0.00,
+          target: 15000.00,
         },
       },
-      assets: []
+      assets: [],
+      transfers: []
     };
 
-    setMembers(emptyMembers);
+    setMembers(preservedMembers);
     setTransactions(emptyTransactions);
     setChores(emptyChores);
     setFinanceData(emptyFinanceData);
 
-    localStorage.setItem("gff_members", JSON.stringify(emptyMembers));
+    localStorage.setItem("gff_members", JSON.stringify(preservedMembers));
     localStorage.setItem("gff_transactions", JSON.stringify(emptyTransactions));
     localStorage.setItem("gff_chores", JSON.stringify(emptyChores));
     localStorage.setItem("gff_finance", JSON.stringify(emptyFinanceData));
@@ -909,6 +913,29 @@ export default function Page() {
 
     setShowResetConfirmModal(false);
     setShowResetSuccessModal(true);
+  };
+
+  const handleClearLedger = () => {
+    if (!activeMember || activeMember.role !== "admin") {
+      alert("Apenas administradores podem zerar o Livro de Movimentações.");
+      return;
+    }
+
+    const confirmClear = window.confirm("Deseja realmente zerar todo o Livro de Movimentações? Todas as transações do histórico serão excluídas permanentemente. Esta ação não pode ser desfeita.");
+    if (confirmClear) {
+      const emptyTransactions: Transaction[] = [];
+      setTransactions(emptyTransactions);
+      
+      const updatedFinance = {
+        ...financeData,
+        totalExpenses: 0.00
+      };
+      setFinanceData(updatedFinance);
+
+      localStorage.setItem("gff_transactions", JSON.stringify(emptyTransactions));
+      localStorage.setItem("gff_finance", JSON.stringify(updatedFinance));
+      alert("O Livro de Movimentações foi zerado com sucesso!");
+    }
   };
 
   const handleResetSystem = () => {
@@ -2392,11 +2419,33 @@ export default function Page() {
     // Replace the transaction
     const updatedTxs = transactions.map(t => t.id === editingTx.id ? updatedTx : t);
 
+    let finalTransfers = financeData.transfers || [];
+    if (editTxCategory === "Metas de Poupança" && editTxGoalKey) {
+      const now = new Date();
+      const pad = (n: number) => n.toString().padStart(2, "0");
+      const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+      const todayStr = getTodayFormatted();
+      const currentGoalData = (tempGoals as Record<string, any>)[editTxGoalKey];
+      const goalText = currentGoalData?.title || (editTxGoalKey === "travel" ? "Viagem" : "Emergência");
+
+      const newTransfer = {
+        id: "tr-" + Date.now(),
+        date: formattedEditDate || todayStr,
+        time: timeStr,
+        amount: amountNum,
+        fromName: `${editTxMember || editingTx.member} (Ajuste)`,
+        goalTitle: goalText,
+        type: editTxType === "expense" ? ("contribution" as const) : ("rescue" as const)
+      };
+      finalTransfers = [newTransfer, ...finalTransfers];
+    }
+
     const updatedFinance = {
       ...financeData,
       balance: tempBalance,
       totalExpenses: tempExpenses,
-      goals: tempGoals
+      goals: tempGoals,
+      transfers: finalTransfers
     };
 
     syncWithStorage(members, updatedTxs, chores, updatedFinance);
@@ -3872,28 +3921,32 @@ export default function Page() {
             {/* OVERVIEW CARDS: PATRIMÔNIO COLETIVO TOTAL */}
             {(() => {
               const commonFundVal = financeData.balance;
+              const commonGoalsVal = Object.values(financeData.goals || {}).reduce((sum, g) => sum + g.current, 0);
+              const commonAssetsVal = (financeData.assets || []).filter(a => a.owner === "Família").reduce((sum, a) => sum + a.value, 0);
+              const totalCommonWealth = commonFundVal + commonGoalsVal + commonAssetsVal;
+
               const membersVal = members.reduce((sum, m) => sum + m.balance, 0);
-              const assetsVal = (financeData.assets || []).reduce((sum, a) => sum + a.value, 0);
-              const totalWealth = commonFundVal + membersVal + assetsVal;
+              const individualAssetsVal = (financeData.assets || []).filter(a => a.owner !== "Família").reduce((sum, a) => sum + a.value, 0);
+              const totalIndividualWealth = membersVal + individualAssetsVal;
               
               return (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* CARD 1: PATRIMÔNIO COLETIVO TOTAL */}
+                  {/* CARD 1: PATRIMÔNIO COMUM FAMILIAR */}
                   <div className="bg-slate-900 border border-slate-800 text-white rounded-3xl p-5 relative overflow-hidden shadow-md">
                     <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 rounded-full blur-xl pointer-events-none" />
                     <div className="flex items-center justify-between mb-2 pb-1 border-b border-slate-800/60">
                       <h4 className="text-[10px] font-bold uppercase tracking-wider text-indigo-300 flex items-center gap-1.5">
-                        <span>💰 Patrimônio Coletivo</span>
+                        <span>💰 Patrimônio Comum Familiar</span>
                       </h4>
                       <span className="text-[9px] bg-indigo-950 text-indigo-300 border border-indigo-900 px-2 py-0.5 rounded-full font-bold">
-                        Geral do Lar
+                        Comum do Lar
                       </span>
                     </div>
                     <p className="text-3xl font-black text-white mt-1">
-                      {systemCurrency} {totalWealth.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {systemCurrency} {totalCommonWealth.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
                     <p className="text-[10px] text-slate-400 mt-2.5 leading-relaxed">
-                      Soma dos cofres, saldos individuais e {financeData.assets?.length || 0} ativos monitorados.
+                      Cofre Comum + Metas Coletivas + Ativos da Família. (Não inclui saldos individuais dos membros).
                     </p>
                   </div>
 
@@ -3902,7 +3955,7 @@ export default function Page() {
                     <div className="absolute top-0 right-0 w-20 h-20 bg-indigo-50 rounded-full blur-xl pointer-events-none" />
                     <div className="flex items-center justify-between mb-2 pb-1 border-b border-slate-100">
                       <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                        <span>🏦 Fundo Comum (Cofre)</span>
+                        <span>🏦 Saldo do Cofre Comum</span>
                       </h4>
                       <div className="flex items-center gap-1.5">
                         {activeMember?.role === "admin" && (
@@ -3925,39 +3978,26 @@ export default function Page() {
                       {systemCurrency} {commonFundVal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
                     <p className="text-[10px] text-slate-400 mt-2.5 leading-relaxed">
-                      Saldo geral compartilhado para cobrir metas e despesas ordinárias do lar.
+                      Recurso líquido compartilhado para despesas comuns e metas familiares.
                     </p>
                   </div>
 
-                  {/* CARD 3: CARTEIRA DE ATIVOS DE PATRIMÔNIO (CRUD) */}
+                  {/* CARD 3: RECURSOS INDIVIDUAIS DOS MEMBROS */}
                   <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-20 h-20 bg-amber-50 rounded-full blur-xl pointer-events-none" />
                     <div className="flex items-center justify-between mb-2 pb-1 border-b border-slate-100">
                       <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                        <span>💼 Investimentos & Ativos</span>
+                        <span>👛 Saldos & Ativos Individuais</span>
                       </h4>
-                      <button
-                        onClick={() => {
-                          if (activeMember.role === "admin") {
-                            setActiveTab("settings");
-                            setTimeout(() => {
-                              const el = document.getElementById("ativos-crud-section");
-                              if (el) el.scrollIntoView({ behavior: "smooth" });
-                            }, 150);
-                          } else {
-                            alert("Apenas pais/administradores têm permissão para acessar o painel de Ativos e Patrimônio para inclusão/alterações.");
-                          }
-                        }}
-                        className="text-[10px] text-indigo-600 hover:text-indigo-700 hover:underline font-extrabold cursor-pointer"
-                      >
-                        Acessar CRUD &rarr;
-                      </button>
+                      <span className="text-[9px] bg-amber-50 text-amber-700 border border-amber-150 px-2 py-0.5 rounded-full font-bold">
+                        Carteiras Privadas
+                      </span>
                     </div>
                     <p className="text-2xl font-black text-slate-800 mt-1">
-                      {systemCurrency} {assetsVal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {systemCurrency} {totalIndividualWealth.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
                     <p className="text-[10px] text-slate-400 mt-2.5 leading-relaxed">
-                      Lançamento de investimentos, imóveis e veículos. Administre pelo CRUD no menu Configurações.
+                      Soma das carteiras de dependentes, poupanças privadas e investimentos particulares.
                     </p>
                   </div>
                 </div>
@@ -4550,7 +4590,7 @@ export default function Page() {
                             <div className="flex flex-col min-w-0">
                               <div className="flex items-center gap-1.5">
                                   <span className={`w-1.5 h-1.5 rounded-full ${isCont ? "bg-emerald-500" : "bg-rose-500"}`} />
-                                <span className="font-bold text-slate-700 truncate">{transfer.who} &rarr; {transfer.goalTitle}</span>
+                                <span className="font-bold text-slate-700 truncate">{transfer.fromName} &rarr; {transfer.goalTitle}</span>
                               </div>
                               <div className="text-slate-400 font-mono text-[9px] mt-0.5 whitespace-nowrap">
                                 {transfer.date} às {transfer.time || "00:00"}
@@ -4859,116 +4899,122 @@ export default function Page() {
                   {/* PATRIMÔNIO FAMILIAR TOTAL SUMMARY (VALUES AND PERCENTAGES) */}
                   {(() => {
                     const commonFundVal = financeData.balance;
+                    const commonGoalsVal = Object.values(financeData.goals || {}).reduce((sum, g) => sum + g.current, 0);
+                    const commonAssetsVal = (financeData.assets || []).filter(a => a.owner === "Família").reduce((sum, a) => sum + a.value, 0);
+                    const totalCommonWealth = commonFundVal + commonGoalsVal + commonAssetsVal;
+
                     const membersVal = members.reduce((sum, m) => sum + m.balance, 0);
-                    const assetsVal = (financeData.assets || []).reduce((sum, a) => sum + a.value, 0);
-                    const totalWealth = commonFundVal + membersVal + assetsVal;
-                    const commonPctReal = totalWealth > 0 ? (commonFundVal / totalWealth) * 100 : 0;
-                    const assetsPctReal = totalWealth > 0 ? (assetsVal / totalWealth) * 100 : 0;
-                    
+                    const individualAssetsVal = (financeData.assets || []).filter(a => a.owner !== "Família").reduce((sum, a) => sum + a.value, 0);
+                    const totalIndividualWealth = membersVal + individualAssetsVal;
+
+                    const commonFundPct = totalCommonWealth > 0 ? (commonFundVal / totalCommonWealth) * 100 : 0;
+                    const commonGoalsPct = totalCommonWealth > 0 ? (commonGoalsVal / totalCommonWealth) * 100 : 0;
+                    const commonAssetsPct = totalCommonWealth > 0 ? (commonAssetsVal / totalCommonWealth) * 100 : 0;
+
                     return (
-                      <div className="mb-6 p-5 bg-gradient-to-b from-slate-50 to-slate-100/50 rounded-2xl border border-slate-150 shadow-inner">
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
-                          <div>
-                            <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-full uppercase tracking-wider">
-                              Patrimônio Familiar Coletivo
+                      <div className="mb-6 p-6 bg-gradient-to-b from-slate-50 to-slate-100/50 rounded-2xl border border-slate-150 shadow-inner space-y-6">
+                        <div>
+                          <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                            Distribuição do Patrimônio do Lar
+                          </span>
+                          <p className="text-[11px] text-slate-400 mt-1">
+                            Visualização detalhada e separada do patrimônio comum da família e das finanças individuais dos membros.
+                          </p>
+                        </div>
+
+                        {/* SECTION 1: COMMON FAMILY WEALTH */}
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-end">
+                            <span className="text-xs font-extrabold text-slate-700 flex items-center gap-1.5">
+                              <span>🏦 Patrimônio Comum Familiar</span>
                             </span>
-                            <h4 className="text-xl font-black text-slate-800 mt-1.5">
-                              {systemCurrency} {totalWealth.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </h4>
+                            <span className="text-xs font-black text-indigo-700">
+                              {systemCurrency} {totalCommonWealth.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                            </span>
                           </div>
-                          <div className="text-left sm:text-right flex flex-col items-start sm:items-end">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Fundo Comum Familiar</span>
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              {activeMember?.role === "admin" && (
-                                <div className="flex gap-1.5">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setEditCommonBalanceValue(commonFundVal.toString());
-                                      setShowEditCommonBalanceModal(true);
-                                    }}
-                                    className="text-[9px] font-semibold text-indigo-650 hover:text-indigo-800 hover:underline cursor-pointer flex items-center gap-0.5 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-150 transition-all"
-                                  >
-                                    <Pencil className="w-2 h-2" /> Ajustar
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={handleZeroCommonFund}
-                                    className="text-[9px] font-bold text-rose-600 hover:bg-rose-100/50 hover:text-rose-800 hover:underline cursor-pointer flex items-center gap-0.5 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-150 transition-all"
-                                  >
-                                    🧹 Zerar Fundo
-                                  </button>
-                                </div>
-                              )}
-                              <span className="text-sm font-extrabold text-indigo-600">
-                                {systemCurrency} {commonFundVal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="font-bold text-xs text-indigo-500">({commonPctReal.toFixed(1)}%)</span>
-                              </span>
-                            </div>
-                          </div>
-                        </div>
 
-                        {/* STACKED BAR CHART */}
-                        <div className="h-5 w-full bg-slate-200 rounded-full overflow-hidden flex shadow-inner border border-slate-350/10 gap-[2px]">
-                          {/* Common Fund Segment */}
-                          {commonPctReal > 0 && (
-                            <div
-                              style={{ width: `${commonPctReal}%` }}
-                              className="h-full bg-indigo-600 hover:bg-indigo-700 transition-all relative group"
-                              title={`Fundo Comum Familiar: ${commonPctReal.toFixed(1)}%`}
-                            >
-                              <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                            </div>
-                          )}
-
-                          {/* Member Segments */}
-                          {members.map((m) => {
-                            const mPctReal = totalWealth > 0 ? (m.balance / totalWealth) * 100 : 0;
-                            if (mPctReal <= 0) return null;
-                            return (
+                          {/* Common Wealth Stacked Bar */}
+                          <div className="h-4 w-full bg-slate-200 rounded-full overflow-hidden flex gap-[1px]">
+                            {commonFundPct > 0 && (
                               <div
-                                key={m.id}
-                                style={{ width: `${mPctReal}%` }}
-                                className={`h-full bg-gradient-to-r ${m.avatarColor} transition-all relative group cursor-pointer`}
-                                title={`${m.name}: ${mPctReal.toFixed(1)}%`}
-                              >
-                                <div className="absolute inset-0 bg-white/15 opacity-0 group-hover:opacity-100 transition-opacity" />
-                              </div>
-                            );
-                          })}
+                                style={{ width: `${commonFundPct}%` }}
+                                className="h-full bg-indigo-600 hover:bg-indigo-700 transition-all relative group"
+                                title={`Fundo Comum: ${commonFundPct.toFixed(1)}%`}
+                              />
+                            )}
+                            {commonGoalsPct > 0 && (
+                              <div
+                                style={{ width: `${commonGoalsPct}%` }}
+                                className="h-full bg-emerald-500 hover:bg-emerald-600 transition-all relative group"
+                                title={`Metas de Poupança: ${commonGoalsPct.toFixed(1)}%`}
+                              />
+                            )}
+                            {commonAssetsPct > 0 && (
+                              <div
+                                style={{ width: `${commonAssetsPct}%` }}
+                                className="h-full bg-amber-500 hover:bg-amber-600 transition-all relative group"
+                                title={`Ativos Compartilhados: ${commonAssetsPct.toFixed(1)}%`}
+                              />
+                            )}
+                          </div>
 
-                          {/* Assets segment */}
-                          {assetsPctReal > 0 && (
-                            <div
-                              style={{ width: `${assetsPctReal}%` }}
-                              className="h-full bg-amber-500 hover:bg-amber-600 transition-all relative group cursor-pointer"
-                              title={`Ativos & Investimentos: ${assetsPctReal.toFixed(1)}%`}
-                            >
-                              <div className="absolute inset-0 bg-white/15 opacity-0 group-hover:opacity-100 transition-opacity" />
-                            </div>
-                          )}
+                          {/* Common Wealth Legend */}
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[9px] text-slate-400">
+                            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-indigo-600" /> Fundo Comum ({systemCurrency} {commonFundVal.toLocaleString("pt-BR", { maximumFractionDigits: 0 })})</span>
+                            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500" /> Metas Coletivas ({systemCurrency} {commonGoalsVal.toLocaleString("pt-BR", { maximumFractionDigits: 0 })})</span>
+                            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500" /> Ativos Comuns ({systemCurrency} {commonAssetsVal.toLocaleString("pt-BR", { maximumFractionDigits: 0 })})</span>
+                          </div>
                         </div>
 
-                        {/* LEGEND WITH PILLS */}
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-4 text-[10px] text-slate-500">
-                          <div className="flex items-center gap-1.5 font-bold">
-                            <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 flex-shrink-0" />
-                            <span>🏦 Fundo Comum: <span className="text-slate-800 font-extrabold">{commonPctReal.toFixed(1)}%</span></span>
+                        {/* SECTION 2: INDIVIDUAL PRIVATE WEALTH */}
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-end">
+                            <span className="text-xs font-extrabold text-slate-700 flex items-center gap-1.5">
+                              <span>👛 Recursos & Investimentos Individuais</span>
+                            </span>
+                            <span className="text-xs font-black text-slate-700">
+                              {systemCurrency} {totalIndividualWealth.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                            </span>
                           </div>
-                          {members.map((m) => {
-                            const mPctReal = totalWealth > 0 ? (m.balance / totalWealth) * 100 : 0;
-                            return (
-                              <div key={m.id} className="flex items-center gap-1.5 font-semibold">
-                                <span className={`w-2.5 h-2.5 rounded-full bg-gradient-to-r ${m.avatarColor} flex-shrink-0`} />
-                                <span>{m.avatar} {m.name}: <span className="text-slate-850 font-extrabold">{mPctReal.toFixed(1)}%</span></span>
-                              </div>
-                            );
-                          })}
-                          {assetsPctReal > 0 && (
-                            <div className="flex items-center gap-1.5 font-bold">
-                              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 flex-shrink-0" />
-                              <span>💼 Patrimônio / Ativos: <span className="text-slate-800 font-extrabold">{assetsPctReal.toFixed(1)}%</span></span>
-                            </div>
-                          )}
+
+                          {/* Individual Wealth Stacked Bar */}
+                          <div className="h-4 w-full bg-slate-200 rounded-full overflow-hidden flex gap-[1px]">
+                            {members.map((m) => {
+                              const mPct = totalIndividualWealth > 0 ? (m.balance / totalIndividualWealth) * 100 : 0;
+                              if (mPct <= 0) return null;
+                              return (
+                                <div
+                                  key={m.id}
+                                  style={{ width: `${mPct}%` }}
+                                  className={`h-full bg-gradient-to-r ${m.avatarColor} hover:opacity-90 transition-all`}
+                                  title={`${m.name}: ${mPct.toFixed(1)}%`}
+                                />
+                              );
+                            })}
+                            {individualAssetsVal > 0 && (() => {
+                              const assetPct = totalIndividualWealth > 0 ? (individualAssetsVal / totalIndividualWealth) * 100 : 0;
+                              return (
+                                <div
+                                  style={{ width: `${assetPct}%` }}
+                                  className="h-full bg-indigo-450 bg-indigo-400 hover:bg-indigo-500 transition-all"
+                                  title={`Ativos Individuais: ${assetPct.toFixed(1)}%`}
+                                />
+                              );
+                            })()}
+                          </div>
+
+                          {/* Individual Legend */}
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[9px] text-slate-400">
+                            {members.map(m => (
+                              <span key={m.id} className="flex items-center gap-1">
+                                <span className={`w-2 h-2 rounded-full bg-gradient-to-r ${m.avatarColor}`} />
+                                {m.name} ({systemCurrency} {m.balance.toLocaleString("pt-BR", { maximumFractionDigits: 0 })})
+                              </span>
+                            ))}
+                            {individualAssetsVal > 0 && (
+                              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-indigo-400" /> Ativos Individuais ({systemCurrency} {individualAssetsVal.toLocaleString("pt-BR", { maximumFractionDigits: 0 })})</span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
@@ -5341,18 +5387,49 @@ export default function Page() {
                       <p className="text-xs text-slate-400 mt-0.5">Zerar e redefinir o ambiente local do sistema familiar</p>
                     </div>
 
-                    <p className="text-[11px] text-slate-500 leading-relaxed">
-                      Se você adicionou lançamentos de teste ou deseja limpar o cofre comum com transações fictícias para iniciar do zero com sua própria família, use o botão abaixo.
-                    </p>
+                    <div className="space-y-4">
+                      {/* OPTION A: CLEAR LEDGER ONLY */}
+                      <div className="p-3 bg-slate-50 rounded-2xl border border-slate-150 space-y-2">
+                        <h4 className="text-xs font-extrabold text-slate-700 flex items-center gap-1.5">
+                          <span>🧹 Zerar Livro de Movimentações</span>
+                          <span className="text-[7px] font-bold uppercase bg-amber-100 text-amber-700 border border-amber-200 py-0.5 px-1.5 rounded-full">
+                            Somente Admins
+                          </span>
+                        </h4>
+                        <p className="text-[10px] text-slate-500 leading-normal">
+                          Apaga permanentemente todo o histórico de lançamentos e extratos da família, mas <strong>mantém intactos</strong> os usuários cadastrados, tarefas, saldos e metas de poupança.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={handleClearLedger}
+                          className="w-full bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 hover:border-slate-300 font-extrabold text-[11px] py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shadow-xs"
+                        >
+                          <BookOpen className="w-3.5 h-3.5 text-slate-500" />
+                          Limpar Livro de Movimentações
+                        </button>
+                      </div>
 
-                    <button
-                      type="button"
-                      onClick={handleResetSystem}
-                      className="w-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 hover:border-rose-300 font-extrabold text-xs py-2.5 px-4 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
-                    >
-                      <Trash2 className="w-4 h-4 text-rose-600" />
-                      Zerar Todos os Lançamentos (Resetar Sistema)
-                    </button>
+                      {/* OPTION B: TOTAL RESET SYSTEM */}
+                      <div className="p-3 bg-rose-50/40 rounded-2xl border border-rose-100/70 space-y-2">
+                        <h4 className="text-xs font-extrabold text-rose-800 flex items-center gap-1.5">
+                          <span>⚙️ Zerar Todos os Dados (Resetar Sistema)</span>
+                          <span className="text-[7px] font-bold uppercase bg-rose-100 text-rose-700 border border-rose-200 py-0.5 px-1.5 rounded-full">
+                            Completo
+                          </span>
+                        </h4>
+                        <p className="text-[10px] text-rose-600/80 leading-normal">
+                          Redefine o saldo do cofre familiar, cofrinhos individuais das crianças, tarefas e metas para o valor zero. <strong>Mantém preservados</strong> os perfis de usuários cadastrados para que não precisem ser criados novamente!
+                        </p>
+                        <button
+                          type="button"
+                          onClick={handleResetSystem}
+                          className="w-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 hover:border-rose-300 font-extrabold text-[11px] py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                          Resetar Saldos, Metas & Tarefas
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -5557,6 +5634,12 @@ export default function Page() {
                       const filteredTxs = transactions.filter(tx => {
                         const matchesSearch = tx.description.toLowerCase().includes(statementSearch.toLowerCase());
                         const matchesType = statementTypeFilter === "all" || tx.type === statementTypeFilter;
+                        
+                        // Apply monthly temporal filter if enabled
+                        if (periodMode === "monthly" && tx.date) {
+                          if (!isTxInPeriod(tx.date, filterMonth, filterYear)) return false;
+                        }
+
                         return matchesSearch && matchesType;
                       });
 
