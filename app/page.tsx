@@ -465,7 +465,7 @@ export default function Page() {
   // New Transaction form
   const [txDesc, setTxDesc] = useState("");
   const [txAmount, setTxAmount] = useState("");
-  const [txType, setTxType] = useState<"income" | "expense">("expense");
+  const [txType, setTxType] = useState<"income" | "expense" | "transfer">("expense");
   const [txCategory, setTxCategory] = useState<string>("Alimentação");
   const [txMemberId, setTxMemberId] = useState<string>("");
   const [txGoalKey, setTxGoalKey] = useState<"travel" | "emergency" | "">("");
@@ -870,37 +870,33 @@ export default function Page() {
   };
 
   const performSystemReset = () => {
-    // Preserva os membros cadastrados, apenas zerando seus saldos individuais para começar do zero
-    const preservedMembers = members.map(m => ({
-      ...m,
-      balance: 0.00
-    }));
+    // Apaga completamente os usuários, transações, tarefas, ativos, metas e fundo comum para começar do zero absoluto
+    const emptyMembers: FamilyMember[] = [];
     const emptyTransactions: Transaction[] = [];
     const emptyChores: Chore[] = [];
     const emptyFinanceData: FamilyFinanceData = {
       balance: 0.00,
-      budgetLimit: 4000.00,
+      budgetLimit: 0.00,
       totalExpenses: 0.00,
       goals: {
         travel: {
           current: 0.00,
-          target: 8000.00,
+          target: 0.00,
         },
         emergency: {
           current: 0.00,
-          target: 15000.00,
+          target: 0.00,
         },
       },
-      assets: [],
-      transfers: []
+      assets: []
     };
 
-    setMembers(preservedMembers);
+    setMembers(emptyMembers);
     setTransactions(emptyTransactions);
     setChores(emptyChores);
     setFinanceData(emptyFinanceData);
 
-    localStorage.setItem("gff_members", JSON.stringify(preservedMembers));
+    localStorage.setItem("gff_members", JSON.stringify(emptyMembers));
     localStorage.setItem("gff_transactions", JSON.stringify(emptyTransactions));
     localStorage.setItem("gff_chores", JSON.stringify(emptyChores));
     localStorage.setItem("gff_finance", JSON.stringify(emptyFinanceData));
@@ -913,29 +909,6 @@ export default function Page() {
 
     setShowResetConfirmModal(false);
     setShowResetSuccessModal(true);
-  };
-
-  const handleClearLedger = () => {
-    if (!activeMember || activeMember.role !== "admin") {
-      alert("Apenas administradores podem zerar o Livro de Movimentações.");
-      return;
-    }
-
-    const confirmClear = window.confirm("Deseja realmente zerar todo o Livro de Movimentações? Todas as transações do histórico serão excluídas permanentemente. Esta ação não pode ser desfeita.");
-    if (confirmClear) {
-      const emptyTransactions: Transaction[] = [];
-      setTransactions(emptyTransactions);
-      
-      const updatedFinance = {
-        ...financeData,
-        totalExpenses: 0.00
-      };
-      setFinanceData(updatedFinance);
-
-      localStorage.setItem("gff_transactions", JSON.stringify(emptyTransactions));
-      localStorage.setItem("gff_finance", JSON.stringify(updatedFinance));
-      alert("O Livro de Movimentações foi zerado com sucesso!");
-    }
   };
 
   const handleResetSystem = () => {
@@ -1348,6 +1321,60 @@ export default function Page() {
       formattedDate = getTodayFormatted();
     }
 
+    if (txType === "transfer") {
+      const actingMemberId = txMemberId || activeMember?.id || "";
+      const targetMember = members.find(m => m.id === actingMemberId) || activeMember;
+      if (!targetMember) {
+        alert("Membro de origem não encontrado.");
+        return;
+      }
+
+      if (amountNum > targetMember.balance) {
+        alert(`O saldo individual de ${targetMember.name} (R$ ${targetMember.balance.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}) é insuficiente para esta transferência.`);
+        return;
+      }
+
+      // Deduct from the member's individual balance
+      const newMembers = members.map(m => {
+        if (m.id === targetMember.id) {
+          return { ...m, balance: m.balance - amountNum };
+        }
+        return m;
+      });
+
+      // Add to common fund balance
+      const newFamilyBalance = financeData.balance + amountNum;
+      const updatedFinance = {
+        ...financeData,
+        balance: newFamilyBalance,
+      };
+
+      // Create transaction log in General Ledger
+      const transferTx: Transaction = {
+        id: "tx-transfer-" + Date.now(),
+        description: `[Transferência para Fundo Comum] De: ${targetMember.name} | Motivo: ${txDesc.trim() || "Contribuição voluntária"}`,
+        amount: amountNum,
+        category: "Transferência",
+        type: "income", // Enters common fund
+        date: formattedDate,
+        member: targetMember.name,
+        accountType: "common"
+      };
+
+      const updatedTxs = [transferTx, ...transactions];
+      syncWithStorage(newMembers, updatedTxs, chores, updatedFinance);
+
+      // Reset Form
+      setTxDesc("");
+      setTxAmount("");
+      setTxCategory("Alimentação");
+      setTxType("expense");
+      setTxGoalKey("");
+      setTxAccountType("common");
+      setTxDateInput(new Date().toISOString().split("T")[0]);
+      return;
+    }
+
     const newTx: Transaction = {
       id: "tx-" + Date.now(),
       description: finalDesc,
@@ -1608,11 +1635,11 @@ export default function Page() {
     if (difference > 0) {
       const adjustmentTx: Transaction = {
         id: `tx-adjust-${Date.now()}`,
-        description: `Ajuste administrativo do Cofre Comum: de ${systemCurrency} ${previousBalance.toFixed(2)} para ${systemCurrency} ${balanceNum.toFixed(2)}`,
+        description: `Ajuste administrativo do Cofre Comum: de ${systemCurrency} ${previousBalance.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} para ${systemCurrency} ${balanceNum.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
         amount: difference,
         type: balanceNum > previousBalance ? "income" : "expense",
-        category: "Outros",
-        date: new Date().toLocaleDateString("pt-BR"),
+        category: "Ajuste",
+        date: getTodayFormatted(),
         member: activeMember.name,
         accountType: "common"
       };
@@ -1788,6 +1815,7 @@ export default function Page() {
       ? editMemberCustomParticipationType.trim()
       : editMemberParticipationType;
 
+    const oldMember = members.find(m => m.id === editingMember.id);
     const updatedM = members.map(m => {
       if (m.id === editingMember.id) {
         return {
@@ -1803,6 +1831,22 @@ export default function Page() {
       return m;
     });
 
+    let updatedTxs = transactions;
+    if (oldMember && oldMember.balance !== balanceNum) {
+      const difference = balanceNum - oldMember.balance;
+      const adjustTx: Transaction = {
+        id: "tx-member-adjust-" + Date.now(),
+        description: `[Ajuste de Saldo] Alteração manual da carteira individual de ${oldMember.name}. Antigo: R$ ${oldMember.balance.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} | Novo: R$ ${balanceNum.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+        amount: Math.abs(difference),
+        category: "Outros",
+        type: difference > 0 ? "income" : "expense",
+        date: getTodayFormatted(),
+        member: activeMember.name,
+        accountType: "individual"
+      };
+      updatedTxs = [adjustTx, ...transactions];
+    }
+
     // Sync active member state if changed
     if (activeMember.id === editingMember.id) {
       const updatedActive = updatedM.find(m => m.id === activeMember.id);
@@ -1811,7 +1855,7 @@ export default function Page() {
       }
     }
 
-    syncWithStorage(updatedM, transactions, chores, financeData);
+    syncWithStorage(updatedM, updatedTxs, chores, financeData);
     setEditingMember(null);
   };
 
@@ -1978,7 +2022,20 @@ export default function Page() {
       assets: [...currentAssets, newAsset]
     };
 
-    syncWithStorage(members, transactions, chores, updatedFinance);
+    const newTx: Transaction = {
+      id: "tx-asset-create-" + Date.now(),
+      description: `[Patrimônio Criado: ${newAsset.name}] Novo ativo cadastrado (${newAsset.owner})`,
+      amount: newAsset.value,
+      category: "Ativos & Patrimônio",
+      type: "income",
+      date: getTodayFormatted(),
+      member: activeMember.name,
+      accountType: "common"
+    };
+
+    const updatedTxs = [newTx, ...transactions];
+
+    syncWithStorage(members, updatedTxs, chores, updatedFinance);
     
     // Reset form states
     setAddAssetName("");
@@ -2001,8 +2058,10 @@ export default function Page() {
     }
 
     const currentAssets = financeData.assets || [];
+    let oldAsset: FamilyAsset | undefined;
     const updatedAssets = currentAssets.map(asset => {
       if (asset.id === editingAssetId) {
+        oldAsset = asset;
         return {
           ...asset,
           name: editAssetName.trim(),
@@ -2021,7 +2080,36 @@ export default function Page() {
       assets: updatedAssets
     };
 
-    syncWithStorage(members, transactions, chores, updatedFinance);
+    let updatedTxs = transactions;
+    if (oldAsset) {
+      const difference = valNum - oldAsset.value;
+      let desc = "";
+      let txType: "income" | "expense" = "income";
+      if (difference > 0) {
+        desc = `[Patrimônio Atualizado: ${editAssetName.trim()}] Revalorização do ativo (${editAssetOwner}). Antigo: R$ ${oldAsset.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} | Novo: R$ ${valNum.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+        txType = "income";
+      } else if (difference < 0) {
+        desc = `[Patrimônio Atualizado: ${editAssetName.trim()}] Depreciação do ativo (${editAssetOwner}). Antigo: R$ ${oldAsset.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} | Novo: R$ ${valNum.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+        txType = "expense";
+      } else {
+        desc = `[Patrimônio Atualizado: ${editAssetName.trim()}] Alteração cadastral do ativo (${editAssetOwner})`;
+        txType = "income";
+      }
+
+      const newTx: Transaction = {
+        id: "tx-asset-update-" + Date.now(),
+        description: desc,
+        amount: Math.abs(difference) || 0,
+        category: "Ativos & Patrimônio",
+        type: txType,
+        date: getTodayFormatted(),
+        member: activeMember.name,
+        accountType: "common"
+      };
+      updatedTxs = [newTx, ...transactions];
+    }
+
+    syncWithStorage(members, updatedTxs, chores, updatedFinance);
     setEditingAssetId(null);
   };
 
@@ -2031,6 +2119,8 @@ export default function Page() {
 
     if (window.confirm("Deseja realmente excluir este item de patrimônio familiar?")) {
       const currentAssets = financeData.assets || [];
+      const deletedAsset = currentAssets.find(asset => asset.id !== idToDelete); // wait, find the one with id === idToDelete! Let's be careful! Let's use find(asset => asset.id === idToDelete)
+      const assetToFind = currentAssets.find(asset => asset.id === idToDelete);
       const updatedAssets = currentAssets.filter(asset => asset.id !== idToDelete);
 
       const updatedFinance: FamilyFinanceData = {
@@ -2038,7 +2128,22 @@ export default function Page() {
         assets: updatedAssets
       };
 
-      syncWithStorage(members, transactions, chores, updatedFinance);
+      let updatedTxs = transactions;
+      if (assetToFind) {
+        const newTx: Transaction = {
+          id: "tx-asset-delete-" + Date.now(),
+          description: `[Patrimônio Excluído: ${assetToFind.name}] Ativo removido do controle (${assetToFind.owner})`,
+          amount: assetToFind.value,
+          category: "Ativos & Patrimônio",
+          type: "expense",
+          date: getTodayFormatted(),
+          member: activeMember.name,
+          accountType: "common"
+        };
+        updatedTxs = [newTx, ...transactions];
+      }
+
+      syncWithStorage(members, updatedTxs, chores, updatedFinance);
     }
   };
 
@@ -2419,33 +2524,11 @@ export default function Page() {
     // Replace the transaction
     const updatedTxs = transactions.map(t => t.id === editingTx.id ? updatedTx : t);
 
-    let finalTransfers = financeData.transfers || [];
-    if (editTxCategory === "Metas de Poupança" && editTxGoalKey) {
-      const now = new Date();
-      const pad = (n: number) => n.toString().padStart(2, "0");
-      const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-      const todayStr = getTodayFormatted();
-      const currentGoalData = (tempGoals as Record<string, any>)[editTxGoalKey];
-      const goalText = currentGoalData?.title || (editTxGoalKey === "travel" ? "Viagem" : "Emergência");
-
-      const newTransfer = {
-        id: "tr-" + Date.now(),
-        date: formattedEditDate || todayStr,
-        time: timeStr,
-        amount: amountNum,
-        fromName: `${editTxMember || editingTx.member} (Ajuste)`,
-        goalTitle: goalText,
-        type: editTxType === "expense" ? ("contribution" as const) : ("rescue" as const)
-      };
-      finalTransfers = [newTransfer, ...finalTransfers];
-    }
-
     const updatedFinance = {
       ...financeData,
       balance: tempBalance,
       totalExpenses: tempExpenses,
-      goals: tempGoals,
-      transfers: finalTransfers
+      goals: tempGoals
     };
 
     syncWithStorage(members, updatedTxs, chores, updatedFinance);
@@ -3921,32 +4004,28 @@ export default function Page() {
             {/* OVERVIEW CARDS: PATRIMÔNIO COLETIVO TOTAL */}
             {(() => {
               const commonFundVal = financeData.balance;
-              const commonGoalsVal = Object.values(financeData.goals || {}).reduce((sum, g) => sum + g.current, 0);
-              const commonAssetsVal = (financeData.assets || []).filter(a => a.owner === "Família").reduce((sum, a) => sum + a.value, 0);
-              const totalCommonWealth = commonFundVal + commonGoalsVal + commonAssetsVal;
-
               const membersVal = members.reduce((sum, m) => sum + m.balance, 0);
-              const individualAssetsVal = (financeData.assets || []).filter(a => a.owner !== "Família").reduce((sum, a) => sum + a.value, 0);
-              const totalIndividualWealth = membersVal + individualAssetsVal;
+              const assetsVal = (financeData.assets || []).reduce((sum, a) => sum + a.value, 0);
+              const totalWealth = commonFundVal + membersVal + assetsVal;
               
               return (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* CARD 1: PATRIMÔNIO COMUM FAMILIAR */}
+                  {/* CARD 1: PATRIMÔNIO COLETIVO TOTAL */}
                   <div className="bg-slate-900 border border-slate-800 text-white rounded-3xl p-5 relative overflow-hidden shadow-md">
                     <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 rounded-full blur-xl pointer-events-none" />
                     <div className="flex items-center justify-between mb-2 pb-1 border-b border-slate-800/60">
                       <h4 className="text-[10px] font-bold uppercase tracking-wider text-indigo-300 flex items-center gap-1.5">
-                        <span>💰 Patrimônio Comum Familiar</span>
+                        <span>💰 Patrimônio Coletivo</span>
                       </h4>
                       <span className="text-[9px] bg-indigo-950 text-indigo-300 border border-indigo-900 px-2 py-0.5 rounded-full font-bold">
-                        Comum do Lar
+                        Geral do Lar
                       </span>
                     </div>
                     <p className="text-3xl font-black text-white mt-1">
-                      {systemCurrency} {totalCommonWealth.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {systemCurrency} {totalWealth.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
                     <p className="text-[10px] text-slate-400 mt-2.5 leading-relaxed">
-                      Cofre Comum + Metas Coletivas + Ativos da Família. (Não inclui saldos individuais dos membros).
+                      Soma dos cofres, saldos individuais e {financeData.assets?.length || 0} ativos monitorados.
                     </p>
                   </div>
 
@@ -3955,7 +4034,7 @@ export default function Page() {
                     <div className="absolute top-0 right-0 w-20 h-20 bg-indigo-50 rounded-full blur-xl pointer-events-none" />
                     <div className="flex items-center justify-between mb-2 pb-1 border-b border-slate-100">
                       <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                        <span>🏦 Saldo do Cofre Comum</span>
+                        <span>🏦 Fundo Comum (Cofre)</span>
                       </h4>
                       <div className="flex items-center gap-1.5">
                         {activeMember?.role === "admin" && (
@@ -3978,26 +4057,49 @@ export default function Page() {
                       {systemCurrency} {commonFundVal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
                     <p className="text-[10px] text-slate-400 mt-2.5 leading-relaxed">
-                      Recurso líquido compartilhado para despesas comuns e metas familiares.
+                      Saldo geral compartilhado para cobrir metas e despesas ordinárias do lar.
                     </p>
+                    {activeMember && (
+                      <div className="mt-3.5 pt-2.5 border-t border-dashed border-slate-100 flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                          <span>{activeMember.avatar} Seu Saldo</span>
+                        </span>
+                        <span className="text-xs font-black text-indigo-650 bg-indigo-50/40 border border-indigo-100 px-2 py-0.5 rounded-lg text-indigo-700">
+                          {systemCurrency} {((members.find(m => m.id === activeMember.id)?.balance) ?? activeMember.balance).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
-                  {/* CARD 3: RECURSOS INDIVIDUAIS DOS MEMBROS */}
+                  {/* CARD 3: CARTEIRA DE ATIVOS DE PATRIMÔNIO (CRUD) */}
                   <div className="bg-white rounded-3xl p-5 border border-slate-100 shadow-sm relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-20 h-20 bg-amber-50 rounded-full blur-xl pointer-events-none" />
                     <div className="flex items-center justify-between mb-2 pb-1 border-b border-slate-100">
                       <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                        <span>👛 Saldos & Ativos Individuais</span>
+                        <span>💼 Investimentos & Ativos</span>
                       </h4>
-                      <span className="text-[9px] bg-amber-50 text-amber-700 border border-amber-150 px-2 py-0.5 rounded-full font-bold">
-                        Carteiras Privadas
-                      </span>
+                      <button
+                        onClick={() => {
+                          if (activeMember.role === "admin") {
+                            setActiveTab("settings");
+                            setTimeout(() => {
+                              const el = document.getElementById("ativos-crud-section");
+                              if (el) el.scrollIntoView({ behavior: "smooth" });
+                            }, 150);
+                          } else {
+                            alert("Apenas pais/administradores têm permissão para acessar o painel de Ativos e Patrimônio para inclusão/alterações.");
+                          }
+                        }}
+                        className="text-[10px] text-indigo-600 hover:text-indigo-700 hover:underline font-extrabold cursor-pointer"
+                      >
+                        Acessar CRUD &rarr;
+                      </button>
                     </div>
                     <p className="text-2xl font-black text-slate-800 mt-1">
-                      {systemCurrency} {totalIndividualWealth.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {systemCurrency} {assetsVal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
                     <p className="text-[10px] text-slate-400 mt-2.5 leading-relaxed">
-                      Soma das carteiras de dependentes, poupanças privadas e investimentos particulares.
+                      Lançamento de investimentos, imóveis e veículos. Administre pelo CRUD no menu Configurações.
                     </p>
                   </div>
                 </div>
@@ -4019,10 +4121,23 @@ export default function Page() {
                   
                   {/* Common Treasury Balance */}
                   <div>
-                    <h2 className="text-slate-400 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 mb-1">
-                      <Layers className="w-4 h-4 text-indigo-600" />
-                      Fundo Comum da Família
-                    </h2>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h2 className="text-slate-400 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
+                        <Layers className="w-4 h-4 text-indigo-600" />
+                        Fundo Comum da Família
+                      </h2>
+                      {activeMember?.role === "admin" && (
+                        <button
+                          onClick={() => {
+                            setEditCommonBalanceValue(financeData.balance.toString());
+                            setShowEditCommonBalanceModal(true);
+                          }}
+                          className="text-[9px] bg-slate-50 text-slate-500 hover:text-indigo-650 hover:bg-indigo-50 border border-slate-200 px-2 py-0.5 rounded-full font-semibold flex items-center gap-0.5 cursor-pointer transition-all"
+                        >
+                          <Pencil className="w-2.5 h-2.5" /> Ajustar
+                        </button>
+                      )}
+                    </div>
                     <p className="text-4xl font-extrabold text-slate-800">
                       R$ {financeData.balance.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </p>
@@ -4257,18 +4372,18 @@ export default function Page() {
 
                           <form onSubmit={handleAddTransaction} className="space-y-3.5">
                             {/* TYPE SWITCH */}
-                            <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-200/50 rounded-xl">
+                            <div className="grid grid-cols-3 gap-1 p-1 bg-slate-200/50 rounded-xl">
                               <button
                                 type="button"
                                 onClick={() => {
                                   setTxType("expense");
                                   setTxCategory("Alimentação");
                                 }}
-                                className={`text-xs py-1.5 rounded-lg font-bold transition-all ${
+                                className={`text-[10px] py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
                                   txType === "expense" ? "bg-white text-slate-800 shadow" : "text-slate-500"
                                 }`}
                               >
-                                💸 Saída Gasto
+                                💸 Gasto
                               </button>
                               <button
                                 type="button"
@@ -4276,24 +4391,38 @@ export default function Page() {
                                   setTxType("income");
                                   setTxCategory("Trabalho");
                                 }}
-                                className={`text-xs py-1.5 rounded-lg font-bold transition-all ${
+                                className={`text-[10px] py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
                                   txType === "income" ? "bg-indigo-600 text-white shadow" : "text-slate-500"
                                 }`}
                               >
-                                📈 Entrada Receita
+                                📈 Receita
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setTxType("transfer");
+                                  setTxCategory("Transferência");
+                                }}
+                                className={`text-[10px] py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
+                                  txType === "transfer" ? "bg-teal-650 bg-teal-600 text-white shadow" : "text-slate-500"
+                                }`}
+                              >
+                                🏦 Transf. p/ Cofre
                               </button>
                             </div>
 
                             {/* DESCRIPTION */}
                             <div>
-                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Descrição</label>
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                                {txType === "transfer" ? "Motivo / Descrição" : "Descrição"}
+                              </label>
                               <input
                                 type="text"
                                 required
                                 value={txDesc}
                                 onChange={(e) => setTxDesc(e.target.value)}
-                                placeholder="Ex: Fruteira, Gasolina, Net..."
-                                className="w-full text-slate-800 border border-slate-200 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 focus:outline-none bg-white rounded-xl px-3 py-2 text-xs"
+                                placeholder={txType === "transfer" ? "Ex: Guardando mesada, Contribuição..." : "Ex: Fruteira, Gasolina, Net..."}
+                                className="w-full text-slate-800 border border-slate-200 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 focus:outline-none bg-white rounded-xl px-3 py-2 text-xs font-medium"
                               />
                             </div>
 
@@ -4309,7 +4438,7 @@ export default function Page() {
                                   value={txAmount}
                                   onChange={(e) => setTxAmount(e.target.value)}
                                   placeholder="0,00"
-                                  className="w-full text-slate-800 border border-slate-200 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 focus:outline-none bg-white rounded-xl px-3 py-2 text-xs"
+                                  className="w-full text-slate-800 border border-slate-200 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 focus:outline-none bg-white rounded-xl px-3 py-2 text-xs font-medium"
                                 />
                               </div>
 
@@ -4323,9 +4452,11 @@ export default function Page() {
                                       setTxGoalKey("");
                                     }
                                   }}
-                                  className="w-full text-slate-800 border border-slate-200 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 focus:outline-none bg-white rounded-xl px-3 py-2 text-xs"
+                                  className="w-full text-slate-800 border border-slate-200 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 focus:outline-none bg-white rounded-xl px-3 py-2 text-xs font-semibold"
                                 >
-                                  {txType === "expense" ? (
+                                  {txType === "transfer" ? (
+                                    <option value="Transferência">🏦 Transferência Interna</option>
+                                  ) : txType === "expense" ? (
                                     <>
                                       {expenseCategories.map(cat => (
                                         <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>
@@ -4365,21 +4496,27 @@ export default function Page() {
                             {activeMember.role === "admin" && (
                               <div className="space-y-3.5">
                                 <div>
-                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Atribuir Lançamento</label>
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                                    {txType === "transfer" ? "Transferir de (Membro Origem)" : "Atribuir Lançamento"}
+                                  </label>
                                   <select
                                     value={txMemberId}
                                     onChange={(e) => setTxMemberId(e.target.value)}
-                                    className="w-full text-slate-800 border border-slate-200 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 focus:outline-none bg-white rounded-xl px-3 py-2 text-xs"
+                                    className="w-full text-slate-800 border border-slate-200 focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 focus:outline-none bg-white rounded-xl px-3 py-2 text-xs font-semibold"
                                   >
-                                    <option value="">Você ({activeMember.name})</option>
+                                    <option value="">{txType === "transfer" ? `Você (${activeMember.name} - R$ ${activeMember.balance.toLocaleString("pt-BR", { minimumFractionDigits: 2 })})` : `Você (${activeMember.name})`}</option>
                                     {members.map((m) => {
                                       if (m.id === activeMember.id) return null;
-                                      return <option key={m.id} value={m.id}>{m.name}</option>;
+                                      return (
+                                        <option key={m.id} value={m.id}>
+                                          {m.name} {txType === "transfer" ? `(Saldo: R$ ${m.balance.toLocaleString("pt-BR", { minimumFractionDigits: 2 })})` : ""}
+                                        </option>
+                                      );
                                     })}
                                   </select>
                                 </div>
 
-                                {txCategory !== "Metas de Poupança" && (
+                                {txCategory !== "Metas de Poupança" && txType !== "transfer" && (
                                   <div>
                                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Conta de Lançamento</label>
                                     <div className="grid grid-cols-2 gap-2">
@@ -4590,7 +4727,7 @@ export default function Page() {
                             <div className="flex flex-col min-w-0">
                               <div className="flex items-center gap-1.5">
                                   <span className={`w-1.5 h-1.5 rounded-full ${isCont ? "bg-emerald-500" : "bg-rose-500"}`} />
-                                <span className="font-bold text-slate-700 truncate">{transfer.fromName} &rarr; {transfer.goalTitle}</span>
+                                <span className="font-bold text-slate-700 truncate">{transfer.fromName || (transfer as any).who} &rarr; {transfer.goalTitle}</span>
                               </div>
                               <div className="text-slate-400 font-mono text-[9px] mt-0.5 whitespace-nowrap">
                                 {transfer.date} às {transfer.time || "00:00"}
@@ -4899,122 +5036,116 @@ export default function Page() {
                   {/* PATRIMÔNIO FAMILIAR TOTAL SUMMARY (VALUES AND PERCENTAGES) */}
                   {(() => {
                     const commonFundVal = financeData.balance;
-                    const commonGoalsVal = Object.values(financeData.goals || {}).reduce((sum, g) => sum + g.current, 0);
-                    const commonAssetsVal = (financeData.assets || []).filter(a => a.owner === "Família").reduce((sum, a) => sum + a.value, 0);
-                    const totalCommonWealth = commonFundVal + commonGoalsVal + commonAssetsVal;
-
                     const membersVal = members.reduce((sum, m) => sum + m.balance, 0);
-                    const individualAssetsVal = (financeData.assets || []).filter(a => a.owner !== "Família").reduce((sum, a) => sum + a.value, 0);
-                    const totalIndividualWealth = membersVal + individualAssetsVal;
-
-                    const commonFundPct = totalCommonWealth > 0 ? (commonFundVal / totalCommonWealth) * 100 : 0;
-                    const commonGoalsPct = totalCommonWealth > 0 ? (commonGoalsVal / totalCommonWealth) * 100 : 0;
-                    const commonAssetsPct = totalCommonWealth > 0 ? (commonAssetsVal / totalCommonWealth) * 100 : 0;
-
+                    const assetsVal = (financeData.assets || []).reduce((sum, a) => sum + a.value, 0);
+                    const totalWealth = commonFundVal + membersVal + assetsVal;
+                    const commonPctReal = totalWealth > 0 ? (commonFundVal / totalWealth) * 100 : 0;
+                    const assetsPctReal = totalWealth > 0 ? (assetsVal / totalWealth) * 100 : 0;
+                    
                     return (
-                      <div className="mb-6 p-6 bg-gradient-to-b from-slate-50 to-slate-100/50 rounded-2xl border border-slate-150 shadow-inner space-y-6">
-                        <div>
-                          <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-full uppercase tracking-wider">
-                            Distribuição do Patrimônio do Lar
-                          </span>
-                          <p className="text-[11px] text-slate-400 mt-1">
-                            Visualização detalhada e separada do patrimônio comum da família e das finanças individuais dos membros.
-                          </p>
-                        </div>
-
-                        {/* SECTION 1: COMMON FAMILY WEALTH */}
-                        <div className="space-y-2">
-                          <div className="flex justify-between items-end">
-                            <span className="text-xs font-extrabold text-slate-700 flex items-center gap-1.5">
-                              <span>🏦 Patrimônio Comum Familiar</span>
+                      <div className="mb-6 p-5 bg-gradient-to-b from-slate-50 to-slate-100/50 rounded-2xl border border-slate-150 shadow-inner">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
+                          <div>
+                            <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                              Patrimônio Familiar Coletivo
                             </span>
-                            <span className="text-xs font-black text-indigo-700">
-                              {systemCurrency} {totalCommonWealth.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                            </span>
+                            <h4 className="text-xl font-black text-slate-800 mt-1.5">
+                              {systemCurrency} {totalWealth.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </h4>
                           </div>
-
-                          {/* Common Wealth Stacked Bar */}
-                          <div className="h-4 w-full bg-slate-200 rounded-full overflow-hidden flex gap-[1px]">
-                            {commonFundPct > 0 && (
-                              <div
-                                style={{ width: `${commonFundPct}%` }}
-                                className="h-full bg-indigo-600 hover:bg-indigo-700 transition-all relative group"
-                                title={`Fundo Comum: ${commonFundPct.toFixed(1)}%`}
-                              />
-                            )}
-                            {commonGoalsPct > 0 && (
-                              <div
-                                style={{ width: `${commonGoalsPct}%` }}
-                                className="h-full bg-emerald-500 hover:bg-emerald-600 transition-all relative group"
-                                title={`Metas de Poupança: ${commonGoalsPct.toFixed(1)}%`}
-                              />
-                            )}
-                            {commonAssetsPct > 0 && (
-                              <div
-                                style={{ width: `${commonAssetsPct}%` }}
-                                className="h-full bg-amber-500 hover:bg-amber-600 transition-all relative group"
-                                title={`Ativos Compartilhados: ${commonAssetsPct.toFixed(1)}%`}
-                              />
-                            )}
-                          </div>
-
-                          {/* Common Wealth Legend */}
-                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[9px] text-slate-400">
-                            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-indigo-600" /> Fundo Comum ({systemCurrency} {commonFundVal.toLocaleString("pt-BR", { maximumFractionDigits: 0 })})</span>
-                            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500" /> Metas Coletivas ({systemCurrency} {commonGoalsVal.toLocaleString("pt-BR", { maximumFractionDigits: 0 })})</span>
-                            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500" /> Ativos Comuns ({systemCurrency} {commonAssetsVal.toLocaleString("pt-BR", { maximumFractionDigits: 0 })})</span>
-                          </div>
-                        </div>
-
-                        {/* SECTION 2: INDIVIDUAL PRIVATE WEALTH */}
-                        <div className="space-y-2">
-                          <div className="flex justify-between items-end">
-                            <span className="text-xs font-extrabold text-slate-700 flex items-center gap-1.5">
-                              <span>👛 Recursos & Investimentos Individuais</span>
-                            </span>
-                            <span className="text-xs font-black text-slate-700">
-                              {systemCurrency} {totalIndividualWealth.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                            </span>
-                          </div>
-
-                          {/* Individual Wealth Stacked Bar */}
-                          <div className="h-4 w-full bg-slate-200 rounded-full overflow-hidden flex gap-[1px]">
-                            {members.map((m) => {
-                              const mPct = totalIndividualWealth > 0 ? (m.balance / totalIndividualWealth) * 100 : 0;
-                              if (mPct <= 0) return null;
-                              return (
-                                <div
-                                  key={m.id}
-                                  style={{ width: `${mPct}%` }}
-                                  className={`h-full bg-gradient-to-r ${m.avatarColor} hover:opacity-90 transition-all`}
-                                  title={`${m.name}: ${mPct.toFixed(1)}%`}
-                                />
-                              );
-                            })}
-                            {individualAssetsVal > 0 && (() => {
-                              const assetPct = totalIndividualWealth > 0 ? (individualAssetsVal / totalIndividualWealth) * 100 : 0;
-                              return (
-                                <div
-                                  style={{ width: `${assetPct}%` }}
-                                  className="h-full bg-indigo-450 bg-indigo-400 hover:bg-indigo-500 transition-all"
-                                  title={`Ativos Individuais: ${assetPct.toFixed(1)}%`}
-                                />
-                              );
-                            })()}
-                          </div>
-
-                          {/* Individual Legend */}
-                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[9px] text-slate-400">
-                            {members.map(m => (
-                              <span key={m.id} className="flex items-center gap-1">
-                                <span className={`w-2 h-2 rounded-full bg-gradient-to-r ${m.avatarColor}`} />
-                                {m.name} ({systemCurrency} {m.balance.toLocaleString("pt-BR", { maximumFractionDigits: 0 })})
+                          <div className="text-left sm:text-right flex flex-col items-start sm:items-end">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Fundo Comum Familiar</span>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              {activeMember?.role === "admin" && (
+                                <div className="flex gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditCommonBalanceValue(commonFundVal.toString());
+                                      setShowEditCommonBalanceModal(true);
+                                    }}
+                                    className="text-[9px] font-semibold text-indigo-650 hover:text-indigo-800 hover:underline cursor-pointer flex items-center gap-0.5 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-150 transition-all"
+                                  >
+                                    <Pencil className="w-2 h-2" /> Ajustar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={handleZeroCommonFund}
+                                    className="text-[9px] font-bold text-rose-600 hover:bg-rose-100/50 hover:text-rose-800 hover:underline cursor-pointer flex items-center gap-0.5 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-150 transition-all"
+                                  >
+                                    🧹 Zerar Fundo
+                                  </button>
+                                </div>
+                              )}
+                              <span className="text-sm font-extrabold text-indigo-600">
+                                {systemCurrency} {commonFundVal.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="font-bold text-xs text-indigo-500">({commonPctReal.toFixed(1)}%)</span>
                               </span>
-                            ))}
-                            {individualAssetsVal > 0 && (
-                              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-indigo-400" /> Ativos Individuais ({systemCurrency} {individualAssetsVal.toLocaleString("pt-BR", { maximumFractionDigits: 0 })})</span>
-                            )}
+                            </div>
                           </div>
+                        </div>
+
+                        {/* STACKED BAR CHART */}
+                        <div className="h-5 w-full bg-slate-200 rounded-full overflow-hidden flex shadow-inner border border-slate-350/10 gap-[2px]">
+                          {/* Common Fund Segment */}
+                          {commonPctReal > 0 && (
+                            <div
+                              style={{ width: `${commonPctReal}%` }}
+                              className="h-full bg-indigo-600 hover:bg-indigo-700 transition-all relative group"
+                              title={`Fundo Comum Familiar: ${commonPctReal.toFixed(1)}%`}
+                            >
+                              <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                          )}
+
+                          {/* Member Segments */}
+                          {members.map((m) => {
+                            const mPctReal = totalWealth > 0 ? (m.balance / totalWealth) * 100 : 0;
+                            if (mPctReal <= 0) return null;
+                            return (
+                              <div
+                                key={m.id}
+                                style={{ width: `${mPctReal}%` }}
+                                className={`h-full bg-gradient-to-r ${m.avatarColor} transition-all relative group cursor-pointer`}
+                                title={`${m.name}: ${mPctReal.toFixed(1)}%`}
+                              >
+                                <div className="absolute inset-0 bg-white/15 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </div>
+                            );
+                          })}
+
+                          {/* Assets segment */}
+                          {assetsPctReal > 0 && (
+                            <div
+                              style={{ width: `${assetsPctReal}%` }}
+                              className="h-full bg-amber-500 hover:bg-amber-600 transition-all relative group cursor-pointer"
+                              title={`Ativos & Investimentos: ${assetsPctReal.toFixed(1)}%`}
+                            >
+                              <div className="absolute inset-0 bg-white/15 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* LEGEND WITH PILLS */}
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-4 text-[10px] text-slate-500">
+                          <div className="flex items-center gap-1.5 font-bold">
+                            <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 flex-shrink-0" />
+                            <span>🏦 Fundo Comum: <span className="text-slate-800 font-extrabold">{commonPctReal.toFixed(1)}%</span></span>
+                          </div>
+                          {members.map((m) => {
+                            const mPctReal = totalWealth > 0 ? (m.balance / totalWealth) * 100 : 0;
+                            return (
+                              <div key={m.id} className="flex items-center gap-1.5 font-semibold">
+                                <span className={`w-2.5 h-2.5 rounded-full bg-gradient-to-r ${m.avatarColor} flex-shrink-0`} />
+                                <span>{m.avatar} {m.name}: <span className="text-slate-850 font-extrabold">{mPctReal.toFixed(1)}%</span></span>
+                              </div>
+                            );
+                          })}
+                          {assetsPctReal > 0 && (
+                            <div className="flex items-center gap-1.5 font-bold">
+                              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 flex-shrink-0" />
+                              <span>💼 Patrimônio / Ativos: <span className="text-slate-800 font-extrabold">{assetsPctReal.toFixed(1)}%</span></span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
@@ -5387,49 +5518,18 @@ export default function Page() {
                       <p className="text-xs text-slate-400 mt-0.5">Zerar e redefinir o ambiente local do sistema familiar</p>
                     </div>
 
-                    <div className="space-y-4">
-                      {/* OPTION A: CLEAR LEDGER ONLY */}
-                      <div className="p-3 bg-slate-50 rounded-2xl border border-slate-150 space-y-2">
-                        <h4 className="text-xs font-extrabold text-slate-700 flex items-center gap-1.5">
-                          <span>🧹 Zerar Livro de Movimentações</span>
-                          <span className="text-[7px] font-bold uppercase bg-amber-100 text-amber-700 border border-amber-200 py-0.5 px-1.5 rounded-full">
-                            Somente Admins
-                          </span>
-                        </h4>
-                        <p className="text-[10px] text-slate-500 leading-normal">
-                          Apaga permanentemente todo o histórico de lançamentos e extratos da família, mas <strong>mantém intactos</strong> os usuários cadastrados, tarefas, saldos e metas de poupança.
-                        </p>
-                        <button
-                          type="button"
-                          onClick={handleClearLedger}
-                          className="w-full bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 hover:border-slate-300 font-extrabold text-[11px] py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shadow-xs"
-                        >
-                          <BookOpen className="w-3.5 h-3.5 text-slate-500" />
-                          Limpar Livro de Movimentações
-                        </button>
-                      </div>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                      Se você adicionou lançamentos de teste ou deseja limpar o cofre comum com transações fictícias para iniciar do zero com sua própria família, use o botão abaixo.
+                    </p>
 
-                      {/* OPTION B: TOTAL RESET SYSTEM */}
-                      <div className="p-3 bg-rose-50/40 rounded-2xl border border-rose-100/70 space-y-2">
-                        <h4 className="text-xs font-extrabold text-rose-800 flex items-center gap-1.5">
-                          <span>⚙️ Zerar Todos os Dados (Resetar Sistema)</span>
-                          <span className="text-[7px] font-bold uppercase bg-rose-100 text-rose-700 border border-rose-200 py-0.5 px-1.5 rounded-full">
-                            Completo
-                          </span>
-                        </h4>
-                        <p className="text-[10px] text-rose-600/80 leading-normal">
-                          Redefine o saldo do cofre familiar, cofrinhos individuais das crianças, tarefas e metas para o valor zero. <strong>Mantém preservados</strong> os perfis de usuários cadastrados para que não precisem ser criados novamente!
-                        </p>
-                        <button
-                          type="button"
-                          onClick={handleResetSystem}
-                          className="w-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 hover:border-rose-300 font-extrabold text-[11px] py-2 px-3 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
-                        >
-                          <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-                          Resetar Saldos, Metas & Tarefas
-                        </button>
-                      </div>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={handleResetSystem}
+                      className="w-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 hover:border-rose-300 font-extrabold text-xs py-2.5 px-4 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                    >
+                      <Trash2 className="w-4 h-4 text-rose-600" />
+                      Zerar Todos os Lançamentos (Resetar Sistema)
+                    </button>
                   </div>
                 )}
 
@@ -5634,12 +5734,6 @@ export default function Page() {
                       const filteredTxs = transactions.filter(tx => {
                         const matchesSearch = tx.description.toLowerCase().includes(statementSearch.toLowerCase());
                         const matchesType = statementTypeFilter === "all" || tx.type === statementTypeFilter;
-                        
-                        // Apply monthly temporal filter if enabled
-                        if (periodMode === "monthly" && tx.date) {
-                          if (!isTxInPeriod(tx.date, filterMonth, filterYear)) return false;
-                        }
-
                         return matchesSearch && matchesType;
                       });
 
